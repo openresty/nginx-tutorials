@@ -15,12 +15,12 @@ my $changes = 0;
 
 my $res;
 while (<$in>) {
-    if (/^\s/) { # verbatim
+    if (/^\s|^\s*$/) { # verbatim
         next;
     }
 
     my $orig = $_;
-    s/.{39}.*?(?:[ \t，。！？]|\p{Han})/$&\n/gso;
+    s/.{39}.*?(?:[ \t”“，。！？]|\p{Han})/$&\n/gso;
     s/\s*\n\s*/\n/gms;
     $changes++ if $orig ne $_;
 
