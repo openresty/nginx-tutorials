@@ -11,6 +11,7 @@ $src =~ s{(<pre.*?)(>.*?<)(/pre>)}{$1.fmt($2).$3}ges;
 $src =~ s!</p><p>!</p><br><p>&nbsp; &nbsp; !gs;
 $src =~ s!^<p>!<p>&nbsp; &nbsp; !g;
 $src =~ s!href="/!href="http://wiki.nginx.org/!g;
+$src =~ s!unescape!\&\#117;nescape!gs;
 print $src;
 
 sub fmt {
@@ -19,6 +20,7 @@ sub fmt {
         my $n = $1;
         $n =~ s!\n+!<br/>!gs;
         $n =~ s! !\&nbsp;!gs;
+        $n =~ s!\%!<span>\%</span>!gs;
         '>'. $n . '<'
     }gse;
     $a;

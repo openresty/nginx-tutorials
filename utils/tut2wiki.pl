@@ -79,14 +79,26 @@ while (<$in>) {
     s{[FC]<(.*?)>}{<code>$1</code>}g;
     s{L<ngx_(\w+)>}{
         my $n = $1;
-        "[[Http" . ucfirst($n) . "Module|ngx_$n]]"
+        if ($n eq 'http_core') {
+            "[http://nginx.org/en/docs/http/ngx_http_core_module.html ngx_$n]"
+
+        } else {
+            my @n = map \{ ucfirst \} split /_/, $n;
+            "[[Http" . join("", @n) . "Module|ngx_$n]]"
+        }
     }ge;
 
-    s{L<ngx_(\w+)/(\w+)>}{
+    s{L<ngx_(\w+)/(\S+)>}{
         my $n = $1;
         my $d = $2;
-        "[[Http" . ucfirst($n) . "Module#$d|$d]]"
+        my @n = map \{ ucfirst \} split /_/, $n;
+        "[[Http" . join("", @n) . "Module#$d|$d]]"
     }ge;
+
+    s{L<(\$arg_XXX)>}{[[HttpCoreModule\#\$arg_PARAMETER|$1]]}g;
+    s{L<(\$cookie_XXX)>}{[[HttpCoreModule\#\$cookie_COOKIE|$1]]}g;
+    s{L<(\$http_XXX)>}{[[HttpCoreModule\#\$http_HEADER|$1]]}g;
+    s{L<(\$sent_http_XXX)>}{[[HttpCoreModule\#\$sent_http_HEADER|$1]]}g;
 
 } continue {
     $prev = $orig;
@@ -95,7 +107,11 @@ while (<$in>) {
 
 close $in;
 
-$wiki =~ s///g;
+if ($wiki =~ /L<.*?>/) {
+    die "Found $&\n";
+}
+
+$wiki =~ s/^\s+|\s+$//sg;
 
 print $wiki;
 
