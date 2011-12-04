@@ -107,7 +107,7 @@ Nginx 内建变量最常见的用途就是获取关于请求或响应的各种�
 
     $ curl 'http://localhost:8080/test/hello%20world?a=3&b=4'
     uri = /test/hello world
-    request_uri = /test%20world?a=3&b=4
+    request_uri = /test/hello%20world?a=3&b=4
 
 另一个特别常用的内建变量其实并不是单独一个变量，而是有无限多变种的一群变量，即名
 字以 C<arg_>
