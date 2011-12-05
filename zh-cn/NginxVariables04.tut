@@ -1,3 +1,5 @@
+= Nginx 变量漫谈（四） =
+
 在设置了“取处理程序”的情况下，Nginx 变量也可以选择将其值容器用作缓存，这
 样在多次读取变量的时候，就只需要调用“取处理程序”计算一次。我们下面就来看一个这
 样的例子：
@@ -13,7 +15,7 @@
 
         location /test {
             set $orig_foo $foo;
-            set $args   debug;
+            set $args debug;
 
             echo "orginal foo: $orig_foo";
             echo "foo: $foo";
@@ -26,40 +28,40 @@
 这个
 L<ngx_map/map> 指令就可以用于定义两个 Nginx 变量之间的映
 射关系，或者说是函数关系。回到上面这个例子，我们用 L<ngx_map/map>
-指令定义了用户变量 C<$foo> 与 L<ngx_http_core/$args>
+指令定义了用户变量 C<$foo> 与 L<ngx_core/$args>
 内建变量之间的映射关系。特
 别地，用数学上的函数记法 C<y = f(x)> 来说，我们的 C<$args>
 就是“自变量” C<x>，而 C<$foo> 则是“因变量” C<y>，即 C<$foo>
-的值是由 L<ngx_http_core/$args> 的值来
-决定的。
+的值是由 L<ngx_core/$args> 的值来
+决定的，或者按照书写顺序可以说，我们将 L<ngx_core/$args> 变量的值映射到了 C<$foo> 变量上。
 
 现在我们再来看 L<ngx_map/map> 指令定义的映射规则：
 
     :nginx
-    map $foo $args {
+    map $args $foo {
         default     0;
         debug       1;
     }
 
-花括号中的第一行中的 C<default> 是一个特殊的条件，即其他条件都不匹配
-时，这个条
-件就匹配。当这个默认条件匹配时，就把“因变量” C<$foo> 映射到值 C<0>.
-而花括号中的第二行的意思是说如果“自变量” C<$args> 精确匹配了 C<debug>
+花括号中第一行的 C<default> 是一个特殊的匹配条件，即当其他条件都不匹配的
+时候，这个条
+件才匹配。当这个默认条件匹配时，就把“因变量” C<$foo> 映射到值 C<0>.
+而花括号中第二行的意思是说，如果“自变量” C<$args> 精确匹配了 C<debug>
 这个字符串，则把“因变量” C<$foo> 映射到值 C<1>. 将这两行合起来
-，我们就得到如下完整的映射规则：当 L<ngx_http_core/$args>
+，我们就得到如下完整的映射规则：当 L<ngx_core/$args>
 的值等于 C<debug> 的时候，C<$foo> 变量的值就是 C<1>，否则
 C<$foo> 的值就为 C<0>.
 
-明白了 L<ngx_map/map> 指令的含义。再来看 C<location
-/test>. 在那里我们先把当前的 C<$foo> 变量的值保存在另一个用户变
-量 C<$orig_foo> 中，然后再强行把 L<ngx_http_core/$args>
-的值改写为 C<debug>. 最后我们再用 L<ngx_echo/echo>
-指令分别输出 C<$orig_foo> 和 C<$foo> 变量的值。
+明白了 L<ngx_map/map> 指令的含义，再来看 C<location
+/test>. 在那里，我们先把当前 C<$foo> 变量的值保存在另一个用户变
+量 C<$orig_foo> 中，然后再强行把 L<ngx_core/$args>
+的值改写为 C<debug>，最后我们再用 L<ngx_echo/echo>
+指令分别输出 C<$orig_foo> 和 C<$foo> 的值。
 
-从逻辑上看，似乎当我们强行改写 L<ngx_http_core/$args> 的
+从逻辑上看，似乎当我们强行改写 L<ngx_core/$args> 的
 值为 C<debug>
 之后，根据先前的 L<ngx_map/map> 映射规则，C<$foo>
-变量此时的值应当自动调整为字符串 C<1>, 而不论 <$foo> 原先的值是怎
+变量此时的值应当自动调整为字符串 C<1>, 而不论 C<$foo> 原先的值是怎
 样的。然而测试结果并非如此：
 
     :bash
@@ -67,20 +69,22 @@ C<$foo> 的值就为 C<0>.
     original foo: 0
     foo: 0
 
-第一行输出指示 C<$orig_foo> 的值为 C<0> 正是我们所期望的，因
-为在上面这个请求中并没有提供 URL 参数串，所以 L<ngx_http_core/$args>
+第一行输出指示 C<$orig_foo> 的值为 C<0>，这正是我们期望的：
+上面这个请求并没有提供 URL 参数串，于是 L<ngx_core/$args>
 最初的取值
 就是空，再根据我们先前定义的映射规则，C<$foo>
 变量在第一次被读取时的值就应当是 C<0>（即匹配默认的那个 C<default>
-条件）。而第二行输出显示我们在强行改写 L<ngx_http_core/$args>
+条件）。
+
+而第二行输出显示，在强行改写 L<ngx_core/$args>
 变量的值为字符串 C<debug> 之后，C<$foo> 的条件仍然是 C<0>
-，这显然不符合映射规则，因为当 L<ngx_http_core/$args> 为
-C<debug> 时，C<$foo> 的值应当是 C<1>－－这究竟是为什么呢？
+，这显然不符合映射规则，因为当 L<ngx_core/$args> 为
+C<debug> 时，C<$foo> 的值应当是 C<1>. 这究竟是为什么呢？
 
 其实原因很简单，那就是 C<$foo> 变量在第一次读取时，根据映射规则计算出的
 值被缓存住了。
-刚才我们说过，Nginx 模块可为它们创建的变量
-选择使用存放值的容器，以作为其“取处理程序”的计算结果的缓存。显然，L<ngx_map>
+刚才我们说过，Nginx 模块可以为其创建的变量
+选择使用值容器，作为其“取处理程序”计算结果的缓存。显然，L<ngx_map>
 模
 块认为变量间的映射计算足够昂贵，需要自动将因变量的计算结果缓存下来，这样在当前
 请求的处理过程中如果再次读取这个因变量，Nginx 就可以直接返回缓存住的结果，
@@ -95,11 +99,11 @@ C<debug> 时，C<$foo> 的值应当是 C<1>－－这究竟是为什么呢？
     foo: 1
 
 我们看到，现在 C<$orig_foo> 的值就成了 C<1>，因为变量 C<$foo>
-在第一次被读取时，自变量 L<ngx_http_core/$args> 的值就是
+在第一次被读取时，自变量 L<ngx_core/$args> 的值就是
 C<debug>，于是按照映射规则，“取处理程序”计算返回的值便是 C<1>.
-而后续再读取 C<$foo>的值时，就总是得到被缓存住的 C<1> 这个结果，而
+而后续再读取 C<$foo> 的值时，就总是得到被缓存住的 C<1> 这个结果，而
 不
-论 L<ngx_http_core/$args> 后来变成什么样了。
+论 L<ngx_core/$args> 后来变成什么样了。
 
 L<ngx_map/map> 指令其实是一个比较特殊的例子，因为它可以为用户变量
 注册“取处理程序”，而且用户可以自己定义这个“取处理程序”的计算规则。当然，此规
@@ -107,11 +111,13 @@ L<ngx_map/map> 指令其实是一个比较特殊的例子，因为它可以为�
 量都会缓存结果，例如我们前面已经看到 L<$arg_XXX> 并不会使用值容器进
 行缓存。
 
+类似 L<ngx_map> 模块，标准的 L<ngx_geo> 等模块也一样使用了变量值的缓存机制。
+
 在上面的例子中，我们还应当注意到 L<ngx_map/map> 指令是在 C<server>
-配置块之外，也就是最外围的 C<http> 配置块中定义的。很多读者可能会对此感
+配置块之外，也就是在最外围的 C<http> 配置块中定义的。很多读者可能会对此感
 到奇
-怪，毕竟我们只是在 C<location /test> 中用到了它。这倒并非我们
-不想把 C<map> 语句直接挪用到 C<location> 配置块中，而是因为
+怪，毕竟我们只是在 C<location /test> 中用到了它。这倒不是因为我们
+不想把 C<map> 语句直接挪到 C<location> 配置块中，而是因为
 L<ngx_map/map> 指令只能在 C<http> 块中使用！
 
 很多 Nginx 新手都会担心如此“全局”范围的 L<ngx_map/map>
@@ -128,9 +134,9 @@ L<ngx_map/map> 指令只能在 C<http> 块中使用！
 这种只在实际使用对象时才计算对象值的技术，在计算领域被称为“惰性求值”（lazy
 evaluation）。提供“惰性求值” 语义的编程语言并不多见，最经典的例子
 便是 Haskell. 与之相对的便是“主动求值” （eager
-evaluation）。我们有幸在 Nginx 中也看到了“惰性求值”这样的例子
-。但“主动求
-值”语义其实在 Nginx 里面也很常见，例如下面这行普通得不能再普通的 L<ngx_rewrite/set>
+evaluation）。我们有幸在 Nginx 中也看到了“惰性求值”的例子
+，但“主动求
+值”语义其实在 Nginx 里面更为常见，例如下面这行再普通不过的 L<ngx_rewrite/set>
 语句：
 
     :nginx
@@ -139,4 +145,6 @@ evaluation）。我们有幸在 Nginx 中也看到了“惰性求值”这样的
 这里会在执行 L<ngx_rewrite/set> 规定的赋值操作时，“主动”地
 计算出变量 C<$b> 的值，而不会
 将该求值计算延缓到变量 C<$b> 实际被读取的时候。
+
+（未完待续）
 
