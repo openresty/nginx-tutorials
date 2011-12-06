@@ -82,8 +82,16 @@ while (<$in>) {
         if ($n eq 'http_core') {
             "[http://nginx.org/en/docs/http/ngx_http_core_module.html ngx_$n]"
 
+        } elsif ($n eq 'auth_request') {
+            "[http://mdounin.ru/hg/ngx_http_auth_request_module/ ngx_$n]"
+
         } else {
-            my @n = map \{ ucfirst \} split /_/, $n;
+            my @n;
+            if ($n eq 'srcache') {
+                @n = 'SRCache';
+            } else {
+                @n = map \{ ucfirst \} split /_/, $n;
+            }
             "[[Http" . join("", @n) . "Module|ngx_$n]]"
         }
     }ge;
@@ -91,8 +99,14 @@ while (<$in>) {
     s{L<ngx_(\w+)/(\S+)>}{
         my $n = $1;
         my $d = $2;
-        my @n = map \{ ucfirst \} split /_/, $n;
-        "[[Http" . join("", @n) . "Module#$d|$d]]"
+
+        if ($n eq 'auth_request') {
+            "<code>$d</code>"
+
+        } else {
+            my @n = map \{ ucfirst \} split /_/, $n;
+            "[[Http" . join("", @n) . "Module#$d|$d]]"
+        }
     }ge;
 
     s{L<(\$arg_XXX)>}{[[HttpCoreModule\#\$arg_PARAMETER|$1]]}g;
