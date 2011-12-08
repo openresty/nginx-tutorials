@@ -85,12 +85,12 @@ while (<$in>) {
         undef $in_geshi;
     }
 
-    s{\bL<vartut/(第(.*?)集)>}{
+    s{\bL<vartut/(（([^>]+?)）)>}{
         my $n = $1;
         my $key = $2;
         my $link = $&;
         my $url = $vartut_links{$key};
-        warn "URL: $url";
+        #warn "URL: $url";
         if (!defined $url) {
             die "Bad link $link\n";
         }
@@ -133,6 +133,8 @@ while (<$in>) {
     s{\bL<(\$cookie_XXX)>}{[[HttpCoreModule\#\$cookie_COOKIE|$1]]}g;
     s{\bL<(\$http_XXX)>}{[[HttpCoreModule\#\$http_HEADER|$1]]}g;
     s{\bL<(\$sent_http_XXX)>}{[[HttpCoreModule\#\$sent_http_HEADER|$1]]}g;
+
+    s{\bL<([^\|>]+)\|([^\|>]+)>}{[$2 $1]}g;
 
     s{\b[FC]<(.*?)>}{<code>$1</code>}g;
 

@@ -62,7 +62,7 @@ Nginx 变量在 Nginx 配置文件中引用时都须带上 C<$> 前缀。这种
 以得到
 
     :bash
-    $ curl localhost:8080/test
+    $ curl 'http://localhost:8080/test'
     hello
 
 这里我们使用第三方 L<ngx_echo> 模块的 L<ngx_echo/echo>
@@ -123,13 +123,13 @@ C<$foo>，于是在整个配置文件中这个变量都是可见的，因此我�
 下面是在命令行上用 C<curl> 工具访问这两个接口的结果：
 
     :bash
-    $ curl localhost/foo
+    $ curl 'http://localhost:8080/foo'
     foo = []
 
-    $ curl localhost/bar
+    $ curl 'http://localhost:8080/bar'
     foo = [32]
 
-    $ curl localhost/foo
+    $ curl 'http://localhost:8080/foo'
     foo = []
 
 从这个例子我们可以看到，C<set> 指令因为是在 C<location /bar>
