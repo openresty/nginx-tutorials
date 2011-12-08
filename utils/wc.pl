@@ -11,6 +11,7 @@ if (!@ARGV) {
 my $hanc = 0;
 my $wc = 0;
 my $c = 0;
+my $lc = 0;
 
 for my $infile (@ARGV) {
     open my $in, "<:encoding(UTF-8)", $infile
@@ -18,6 +19,7 @@ for my $infile (@ARGV) {
         die "cannot open $infile for reading: $!\n";
 
     while (<$in>) {
+        $lc++;
         $hanc++ while /\p{Han}/g;
         while (1) {
             if (/\G\s+/gc) {
@@ -44,5 +46,6 @@ for my $infile (@ARGV) {
 
 print "$hanc han chars found.\n";
 print "$wc words found.\n";
+print "$lc lines found.\n";
 print "$c chars found.\n";
 

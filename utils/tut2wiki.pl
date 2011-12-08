@@ -4,6 +4,15 @@ use strict;
 use warnings;
 use encoding 'utf8';
 
+my %vartut_links = (
+    '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
+    '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wk2j.html',
+    '三' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wm63.html',
+    '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100woyb.html',
+    '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wqn7.html',
+    '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wsip.html',
+);
+
 my $infile = shift or
     die "No input file specified.\n";
 
@@ -39,7 +48,7 @@ while (<$in>) {
 
 close $in;
 
-open $in, '<', \$src;
+open $in, "<:encoding(UTF-8)", \$src;
 
 my $wiki = '';
 undef $prev;
@@ -76,8 +85,19 @@ while (<$in>) {
         undef $in_geshi;
     }
 
-    s{[FC]<(.*?)>}{<code>$1</code>}g;
-    s{L<ngx_(\w+)>}{
+    s{\bL<vartut/(第(.*?)集)>}{
+        my $n = $1;
+        my $key = $2;
+        my $link = $&;
+        my $url = $vartut_links{$key};
+        warn "URL: $url";
+        if (!defined $url) {
+            die "Bad link $link\n";
+        }
+        "[$url $n]"
+    }ge;
+
+    s{\bL<ngx_(\w+)>}{
         my $n = $1;
         if ($n eq 'http_core') {
             "[http://nginx.org/en/docs/http/ngx_http_core_module.html ngx_$n]"
@@ -96,7 +116,7 @@ while (<$in>) {
         }
     }ge;
 
-    s{L<ngx_(\w+)/(\S+)>}{
+    s{\bL<ngx_(\w+)/(\S+)>}{
         my $n = $1;
         my $d = $2;
 
@@ -109,10 +129,12 @@ while (<$in>) {
         }
     }ge;
 
-    s{L<(\$arg_XXX)>}{[[HttpCoreModule\#\$arg_PARAMETER|$1]]}g;
-    s{L<(\$cookie_XXX)>}{[[HttpCoreModule\#\$cookie_COOKIE|$1]]}g;
-    s{L<(\$http_XXX)>}{[[HttpCoreModule\#\$http_HEADER|$1]]}g;
-    s{L<(\$sent_http_XXX)>}{[[HttpCoreModule\#\$sent_http_HEADER|$1]]}g;
+    s{\bL<(\$arg_XXX)>}{[[HttpCoreModule\#\$arg_PARAMETER|$1]]}g;
+    s{\bL<(\$cookie_XXX)>}{[[HttpCoreModule\#\$cookie_COOKIE|$1]]}g;
+    s{\bL<(\$http_XXX)>}{[[HttpCoreModule\#\$http_HEADER|$1]]}g;
+    s{\bL<(\$sent_http_XXX)>}{[[HttpCoreModule\#\$sent_http_HEADER|$1]]}g;
+
+    s{\b[FC]<(.*?)>}{<code>$1</code>}g;
 
 } continue {
     $prev = $orig;
@@ -121,8 +143,8 @@ while (<$in>) {
 
 close $in;
 
-if ($wiki =~ /L<.*?>/) {
-    die "Found $&\n";
+if ($wiki =~ /\bL<.*?>/) {
+    die "Found unresolved link $&\n";
 }
 
 $wiki =~ s/^\s+|\s+$//sg;
