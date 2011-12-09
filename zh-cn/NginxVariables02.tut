@@ -145,7 +145,7 @@ C<name> 的 URI 参数的值，而且还是未解码的原始形式的值。我�
 C<NAME> 参数，抑或是 C<Name>，等等：
 
     $ curl 'http://localhost:8080/test?NAME=Marry'
-    name: Tom
+    name: Marry
     class: 
 
     $ curl 'http://localhost:8080/test?Name=Jimmy'

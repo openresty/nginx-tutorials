@@ -156,6 +156,10 @@ L<ngx_echo> 提供的内建变量 L<ngx_echo/$echo_request_method>：
 
 我们看到，父子请求分别输出了它们各自不同的请求方法，C<POST> 和 C<GET>.
 
+类似 L<ngx_core/$request_method>，内建变量 L<ngx_core/$request_uri>
+一般也返回的是“主请求”未经解析过的 URL，毕竟“子请求”都是在 Nginx
+内部发起的，并不存在所谓的“未解析的”原始形式。
+
 如果真如前面那部分读者所担心的，内建变量的值缓存在共享变量的父子请求之间起了
 作用，
 这无疑是灾难性的。我们前面在 L<vartut/（五）> 中已经看到 L<ngx_auth_request>
