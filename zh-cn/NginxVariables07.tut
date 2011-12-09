@@ -1,6 +1,7 @@
 = Nginx 变量漫谈（七） =
 
-在 L<vartut/（一）> 中我们提到过，Nginx 变量的值只有一种类型，那
+在 L<vartut/（一）> 中我们提到过，Nginx 变量的值只有一种类型，
+那
 就是字符串，但是变量也有可能压根就不存在有意义的值。没有值的变量也有两种特殊的值
 ：一种是“不合法”（invalid），另一种是“没找到”（not found）。
 
@@ -12,7 +13,8 @@
 的特
 殊值，和空字符串（""）这种取值是完全不同的，比如 JavaScript 语言中
 也有专门
-的 C<undefined> 和 C<null> 这两种特殊值，而 Lua 语言中也有专门的 C<nil> 值:
+的 C<undefined> 和 C<null> 这两种特殊值，而 Lua 语言
+中也有专门的 C<nil> 值:
 它们既不等同于空字符串，也不等同于数字 C<0>，更不是布尔值 C<false>.
 其实 SQL 语言中的 C<NULL> 也是类似的一种东西。
 
@@ -114,8 +116,10 @@ C<$foo> 变量的“取处理程序”。于是 C<$foo> 变量的“取处理程
         ';
     }
 
-这个例子和前一个例子功能上非常接近，除了我们在 C</test> 接口中使用了 L<ngx_lua>
-模块的 L<ngx_lua/content_by_lua> 配置指令，嵌入了一小段我
+这个例子和前一个例子功能上非常接近，除了我们在 C</test> 接口中使用了
+L<ngx_lua>
+模块的 L<ngx_lua/content_by_lua> 配置指令，嵌入了一小
+段我
 们自己的 Lua 代码来对 Nginx 变量 C<$arg_name> 的特殊值
 进行
 判断。在这个例子中，当 C<$arg_name> 的值为“没找到”（或者“
@@ -127,7 +131,8 @@ C<$foo> 变量的“取处理程序”。于是 C<$foo> 变量的“取处理程
     name: missing
 
 因为这是我们第一次接触到 L<ngx_lua> 模块，所以需要先简单介绍一下。L<ngx_lua>
-模块将 Lua 语言解释器（或者 L<LuaJIT|http://luajit.org/luajit.html> 即时编译器）嵌入到了 Nginx 核
+模块将 Lua 语言解释器（或者 L<LuaJIT|http://luajit.org/luajit.html>
+即时编译器）嵌入到了 Nginx 核
 心中，从而可以让用户在 Nginx 核心中直接运行 Lua 语言编写的程序。我们
 可以选择在 Nginx 不同的请求处理阶段插入我们的 Lua 代码。这些 Lua
 代码既可以直接内联在 Nginx 配置文件中，也可以单独放置在外部 F<.lua>
@@ -159,7 +164,8 @@ C<ngx.var.arg_name> 在 Lua 世界中的值就是 C<nil>，
 
 这种区分在有些应用场景下非常重要，比如有的 web service 接口会根
 据 C<name> 这个 URL 参数是否存在来决定是否按 C<name> 属性
-对数据集合进行过滤，而显然提供空字符串作为 C<name> 参数的值，也会导致对数
+对数据集合进行过滤，而显然提供空字符串作为 C<name> 参数的值，也会导致对
+数
 据集中取值为空串的记录进行筛选操作。
 
 不过，标准的 L<$arg_XXX> 变量还是有一些局限，比如我们用下面这个
@@ -170,9 +176,14 @@ C<ngx.var.arg_name> 在 Lua 世界中的值就是 C<nil>，
 
 此时，C<$arg_name> 变量仍然读出“找不到”这个特殊值，这就明显有些违
 反常识。此外，L<$arg_XXX> 变量在请求 URL 中有多个同名 C<XXX>
-参数时，就只会返回最先出现的那个 C<XXX> 参数的值，而默默忽略掉其他实例。要解
-决这些局限，可以直接在 Lua 代码中使用 L<ngx_lua> 模块提供的 L<ngx_lua/ngx.req.get_uri_args>
-函数.
+参数时，就只会返回最先出现的那个 C<XXX> 参数的值，而默默忽略掉其他实例：
+
+    :bash
+    $ curl 'http://localhost:8080/test?name=Tom&name=Jim&name=Bob'
+    name: [Tom]
+
+要解决这些局限，可以直接在 Lua 代码中使用 L<ngx_lua> 模块提供的
+L<ngx_lua/ngx.req.get_uri_args> 函数。
 
 （未完待续）
 
