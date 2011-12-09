@@ -11,6 +11,7 @@ my %vartut_links = (
     '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100woyb.html',
     '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wqn7.html',
     '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wsip.html',
+    '七' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wu5t.html',
 );
 
 my $infile = shift or
@@ -35,7 +36,9 @@ while (<$in>) {
 
     chop $src;
 
-    if ($src =~ /(?:\p{Han}|[”“，；：？。！…])$/s && /^(?:\p{Han}|[“”，；：？。！…])/) {
+    if ($src =~ /(?:\p{Han}|[”“）（，；：？。！…])$/s
+        && /^(?:\p{Han}|[“”）（，；：？。！…])/)
+    {
         $src .= $_;
 
     } else {
