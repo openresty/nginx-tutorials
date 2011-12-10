@@ -52,7 +52,7 @@ Nginx 变量在 Nginx 配置文件中引用时都须带上 C<$> 前缀。这种
 
         location /test {
             set $foo hello;
-            echo $foo;
+            echo "foo: $foo";
         }
     }
 
@@ -63,7 +63,7 @@ Nginx 变量在 Nginx 配置文件中引用时都须带上 C<$> 前缀。这种
 
     :bash
     $ curl 'http://localhost:8080/test'
-    hello
+    foo: hello
 
 这里我们使用第三方 L<ngx_echo> 模块的 L<ngx_echo/echo>
 配置指令将 C<$foo> 变量的值作为当前请求的响应体输出。
@@ -72,7 +72,62 @@ Nginx 变量在 Nginx 配置文件中引用时都须带上 C<$> 前缀。这种
 插值”。不过，需要说明的是，并非所有的配置指令都支持“变量插值”。事实上，指令参
 数是否允许“变量插值”，取决于该指令的实现模块。
 
-C<set> 指令不仅有赋值的功能，它还有创建 Nginx 变量的副作用，即当作
+如果我们使用支持“变量插值”的 L<ngx_echo/echo>
+指令，但我仍然想直接输出含“美元符”（C<$>）的字符串，那有没有办法把特殊的
+C<$> 字符给转义
+掉呢？答案是否定的（至少到目前最新的 Nginx 稳定版 C<1.0.10> 一
+直如此）。不过可以通过标准的 L<ngx_geo> 等在取值中不支持“变量插值”
+的模块来特别构造取值为 C<"$"> 的变量，然后再在 L<ngx_echo/echo>
+中使用，比如下面这个例子：
+
+    :nginx
+    geo $dollar {
+        default "$";
+    }
+
+    server {
+        listen 8080;
+
+        location /test {
+            echo "This is a dollar sign: $dollar";
+        }
+    }
+
+测试结果如下：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    This is a dollar sign: $
+
+这里用到了标准模块 L<ngx_geo> 提供的配置指令 L<ngx_geo/geo>
+来为变量 C<$dollar> 赋予字符串 C<"$">，这样我们在下面需要使用
+美元符的地方，就直接引用我们的 C<$dollar> 变量就可以了。
+
+在“变量插值”的上下文中，还有一种特殊情况，即当引用的变量名之后紧跟着字母、数字
+以及下划线这样的构成变量名的字符的时候，我们需要使用特别的记法来消除歧义，例如：
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set $first "hello ";
+            echo "${first}world";
+        }
+    }
+
+这里，我们在 L<ngx_echo/echo> 配置指令的参数值中引用变量 C<$first>
+的时候，后面紧跟着 C<world> 这个单词，所以如果直接写作 C<"$firstworld">
+则 Nginx “变量插值”计算引擎会将之识别为引用了变量 C<$firstworld>.
+为了解决这个难题，Nginx 的字符串记法支持使用花括号在 C<$> 之后把变量
+名围起来，比如这里的 C<${first}>. 上面这个例子的输出是：
+
+    :bash
+    $ curl 'http://localhost:8080/test
+    hello world
+
+L<ngx_rewrite/set> 指令（以及前面提到的 L<ngx_geo/geo>
+指令）不仅有赋值的功能，它还有创建 Nginx 变量的副作用，即当作
 为赋值对象的变量尚不存在时，它会自动创建该变量。比如在上面这个例子中，如
 果 C<$a> 这个变量尚未创建，则 C<set> 指令会自动创建 C<$a>
 这个用户变量。如果我们不创建就直接使用它的值，则会报错。例如
