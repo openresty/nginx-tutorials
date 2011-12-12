@@ -4,6 +4,12 @@ use strict;
 use warnings;
 use encoding 'utf8';
 
+use Getopt::Std;
+my %opts;
+getopts('o:', \%opts) or usage();
+
+my $outfile = $opts{o} || '-';
+
 my %vartut_links = (
     '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
     '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wk2j.html',
@@ -15,11 +21,10 @@ my %vartut_links = (
 );
 
 my $infile = shift or
-    die "No input file specified.\n";
+    usage();
 
 open my $in, "<:encoding(UTF-8)", $infile
-or
-    die "cannot open $infile for reading: $!\n";
+    or die "cannot open $infile for reading: $!\n";
 
 my $prev;
 my $src = '';
@@ -154,5 +159,21 @@ if ($wiki =~ /\bL<.*?>/) {
 
 $wiki =~ s/^\s+|\s+$//sg;
 
-print $wiki;
+if ($outfile) {
+    open my $out, ">:encoding(UTF-8)", $outfile
+        or die "Cannot open $outfile for writing: $!\n";
+
+    print $out $wiki;
+
+    close $out;
+
+} else {
+    print $wiki;
+}
+
+#warn "wrote $outfile.\n";
+
+sub usage {
+    die "Usage: $0 [-o <outfile>] <infile>\n";
+}
 
