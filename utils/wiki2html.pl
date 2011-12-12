@@ -4,7 +4,14 @@ use encoding 'utf8';
 use strict;
 use warnings;
 
+use List::MoreUtils qw(first_index);
 use Getopt::Std;
+
+my @nums = qw(
+   零 一 二 三 四 五 六 七 八 九
+   十 十一 十二 十三 十四 十五 十六 十七 十八 十九
+   二十
+);
 
 my %opts;
 getopts('o:', \%opts) or usage();
@@ -39,6 +46,8 @@ while (<$in>) {
 
 close $in;
 
+$html .= "    </body>\n</html>\n";
+
 if ($outfile) {
     open my $out, ">:encoding(UTF-8)", $outfile
         or die "Cannot open $outfile for writing: $!\n";
@@ -61,7 +70,7 @@ sub fmt_para {
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     </head>
     <body>
-    <h1>$title</h1>
+    <h3>$title</h3>
 _EOC_
     }
 
@@ -82,9 +91,16 @@ _EOC_
         #warn "pos: $pos" if defined $pos;
         if ($s =~ /\G (\s*) \[ (http[^\]\s]+) \s+ ([^\]]+) \] /gcx) {
             my ($indent, $url, $label) = ($1, $2, $3);
-            #warn "matched abs link $&\n";
-            $label = fmt_html($label);
-            $res .= qq{$indent<a href="$url" target="_blank">$label</a>};
+            if ($label =~ m/（([一二三四五六七八九十]+)）/) {
+                my $cn_num = $1;
+                my $n = sprintf "%02d", first_index { $_ eq $cn_num } @nums;
+                $res .= qq{$indent<a href="NginxVariables$n.html">$label</a>}
+
+            } else {
+                #warn "matched abs link $&\n";
+                $label = fmt_html($label);
+                $res .= qq{$indent<a href="$url" target="_blank">$label</a>};
+            }
 
         } elsif ($s =~ /\G \s* \[\[ ([^\|\]]+) \| ([^\]]+) \]\]/gcx) {
             my ($url, $label) = ($1, $2);
