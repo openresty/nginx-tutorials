@@ -7,9 +7,10 @@ use warnings;
 use Getopt::Std;
 
 my %opts;
-getopts('o:', \%opts) or usage();
+getopts('o:v:', \%opts) or usage();
 
 my $outfile = $opts{o};
+my $ver = $opts{v} or usage();
 
 my @nums = qw(
    零 一 二 三 四 五 六 七 八 九
@@ -22,16 +23,21 @@ my @infiles = @ARGV;
 my $res = <<_EOC_;
 <html>
     <head>
-        <title>agentzh 的 Nginx 教程</title>
+        <title>agentzh 的 Nginx 教程（版本 $ver）</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     </head>
-    <body>
+    <body><h2>agentzh 的 Nginx 教程（版本 $ver）</h2>
     <h3>目录</h3>
 _EOC_
 
 $res .= "<ul>\n";
 for my $infile (@ARGV) {
-    if ($infile =~ /NginxVariables(\d+)/) {
+    if ($infile =~ /Foreword/) {
+        $res .= <<_EOC_;
+    <li><a href="$infile">缘起</a></li>
+_EOC_
+
+    } elsif ($infile =~ /NginxVariables(\d+)/) {
         my $num = +$1;
         my $n = $nums[$num];
         #$infile =~ s{.*/}{}g;
@@ -57,6 +63,6 @@ if ($outfile) {
 }
 
 sub usage {
-    die "Usage: $0 [-o <outfile>] <infile>\n";
+    die "Usage: $0 -v <version> [-o <outfile>] <infile>\n";
 }
 

@@ -8,7 +8,7 @@ use Getopt::Std;
 my %opts;
 getopts('o:', \%opts) or usage();
 
-my $outfile = $opts{o} || '-';
+my $outfile = $opts{o};
 
 my %vartut_links = (
     '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
@@ -143,6 +143,8 @@ while (<$in>) {
     s{\bL<(\$sent_http_XXX)>}{[[HttpCoreModule\#\$sent_http_HEADER|$1]]}g;
 
     s{\bL<([^\|>]+)\|([^\|>]+)>}{[$2 $1]}g;
+
+    s{\bL<(http[^\|\>\s]+)>}{[$1 $1]}g;
 
     s{\b[FC]<(.*?)>}{<code>$1</code>}g;
 
