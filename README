@@ -1,0 +1,17 @@
+1. install perl 5.8.1+ into your system (usually it is already
+   installed on *NIX systems.
+
+2. install the Perl CPAN module List::MoreUtils with the
+   command:
+
+        sudo cpan List::MoreUtils
+
+3. Install Calibre from here: http://calibre-ebook.com/
+
+4. Build the ebook files *.mobi and *.epub
+
+        make
+
+   Note that Gnu make is also required. On most *BSD systems,
+   it's usually required to run "gmake" instead of "make" here.
+
