@@ -93,7 +93,7 @@ while (<$in>) {
         undef $in_geshi;
     }
 
-    s{\bL<vartut/(（([^>]+?)）)>}{
+    s{\bL<vartut/([^>（）]*?（([^>]+?)）)>}{
         my $n = $1;
         my $key = $2;
         my $link = $&;

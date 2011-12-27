@@ -7,6 +7,18 @@ use warnings;
 use List::MoreUtils qw(first_index);
 use Getopt::Std;
 
+my @chapters = qw(
+    Foreword
+    NginxVariables
+    NginxDirectiveExecOrder
+);
+
+my %text2chapter = (
+    '缘起' => 'Forword',
+    'Nginx 变量漫谈' => 'NginxVariables',
+    'Nginx 配置指令的执行顺序' => 'NginxDirectiveExecOrder',
+);
+
 my @nums = qw(
    零 一 二 三 四 五 六 七 八 九
    十 十一 十二 十三 十四 十五 十六 十七 十八 十九
@@ -19,6 +31,16 @@ getopts('o:', \%opts) or usage();
 my $outfile = $opts{o};
 
 my $infile = shift or usage();
+
+my ($cur_chapter, $cur_serial, $cur_order);
+if ($infile =~ /\b(\d+)-(\w+?)(?:\d+)?\.wiki$/) {
+    $cur_serial = $1;
+    $cur_chapter = $2;
+    $cur_order = $3;
+
+} else {
+    die "Bad input file $infile\n";
+}
 
 open my $in, "<:encoding(UTF-8)", $infile
     or die "Cannot open $infile for reading: $!\n";
@@ -91,10 +113,45 @@ _EOC_
         #warn "pos: $pos" if defined $pos;
         if ($s =~ /\G (\s*) \[ (http[^\]\s]+) \s+ ([^\]]+) \] /gcx) {
             my ($indent, $url, $label) = ($1, $2, $3);
-            if ($label =~ m/（([一二三四五六七八九十]+)）/) {
-                my $cn_num = $1;
-                my $n = sprintf "%02d", first_index { $_ eq $cn_num } @nums;
-                $res .= qq{$indent<a href="NginxVariables$n.html">$label</a>}
+
+            if ($label =~ /(.+)系列$/ && $text2chapter{$1}) {
+                my $chapter = $text2chapter{$1};
+                if (!$chapter) {
+                    die "Chapter $1 not found";
+                }
+                my $serial = first_index { $_ eq $chapter } @chapters;
+                if (!$serial) {
+                    die "chapter $chapter not found";
+                }
+
+                $serial = sprintf("%02d", $serial);
+                my $fname = "$serial-${chapter}01.html";
+                $res .= qq{$indent<a href="$fname">$label</a>};
+            } elsif ($label =~ m/(.*)（([一二三四五六七八九十]+)）/) {
+                my $text = $1;
+                my $cn_num = $2;
+                my $order = sprintf "%02d", first_index { $_ eq $cn_num } @nums;
+
+                my ($chapter, $serial);
+                if (!$text) {
+                    $chapter = $cur_chapter;
+                    $serial = $cur_serial;
+
+                } else {
+                    $chapter = $text2chapter{$text};
+                    if (!$chapter) {
+                        die "chapter $text not found";
+                    }
+
+                    $serial = first_index { $_ eq $chapter } @chapters;
+                    if (!$serial) {
+                        die "chapter $chapter not found";
+                    }
+
+                    $serial = sprintf("%02d", $serial);
+                }
+
+                $res .= qq{$indent<a href="$serial-$chapter$order.html">$label</a>};
 
             } else {
                 #warn "matched abs link $&\n";

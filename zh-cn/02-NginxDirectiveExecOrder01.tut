@@ -236,8 +236,8 @@ L<ngx_echo/echo> 语句，而最后那一行信息则是对应于 L<ngx_echo>
 
 这一行便是说，当前配置指令运行在 C<content> 阶段。如果你使用的
 Nginx 模块碰巧没有指示运行阶段的文档，可以直接联系该模块的作者请求补充。不
-过，值得一提的是，并非所有的配置指令都与某个处理阶段相关联，例如我们先前在 L<Nginx
-变量漫谈系列> 中介绍过的 L<ngx_geo/geo> 指令以及 L<ngx_map/map>
+过，值得一提的是，并非所有的配置指令都与某个处理阶段相关联，例如我们先前在 L<vartut/Nginx
+变量漫谈（一）> 中提到过的 L<ngx_geo/geo> 指令以及 L<ngx_map/map>
 指令。Nginx 的作者 Igor Sysoev 在公开场合曾不止一次地强调，Nginx
 配置文件所使用的语言本质上是“声明性的”（declarative），而非“过程性
 的”（procedural）。

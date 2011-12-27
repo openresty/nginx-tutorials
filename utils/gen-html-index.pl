@@ -44,6 +44,15 @@ _EOC_
         $res .= <<_EOC_;
     <li><a href="$infile">Nginx 变量漫谈（$n）</a></li>
 _EOC_
+
+    } elsif ($infile =~ /DirectiveExecOrder(\d+)/) {
+        my $num = +$1;
+        my $n = $nums[$num];
+        #$infile =~ s{.*/}{}g;
+        $res .= <<_EOC_;
+    <li><a href="$infile">Nginx 配置指令的执行顺序（$n）</a></li>
+_EOC_
+
     } else {
         die "Unknown file $infile";
     }
