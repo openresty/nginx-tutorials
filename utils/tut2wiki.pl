@@ -124,6 +124,10 @@ while (<$in>) {
         }
     }ge;
 
+    s{\bL<error_log>}{[[CoreModule#error_log|error_log]]}g;
+
+    s{\bL<(Nginx 变量漫谈系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
+
     s{\bL<ngx_(\w+)/(\S+)>}{
         my $n = $1;
         my $d = $2;
