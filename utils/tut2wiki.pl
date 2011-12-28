@@ -128,6 +128,8 @@ while (<$in>) {
 
     s{\bL<(Nginx 变量漫谈系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
 
+    s{\bL<(Nginx 配置指令的执行顺序系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
+
     s{\bL<ngx_(\w+)/(\S+)>}{
         my $n = $1;
         my $d = $2;

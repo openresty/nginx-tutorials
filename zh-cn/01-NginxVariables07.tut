@@ -185,5 +185,3 @@ C<ngx.var.arg_name> 在 Lua 世界中的值就是 C<nil>，
 要解决这些局限，可以直接在 Lua 代码中使用 L<ngx_lua> 模块提供的
 L<ngx_lua/ngx.req.get_uri_args> 函数。
 
-（未完待续）
-
