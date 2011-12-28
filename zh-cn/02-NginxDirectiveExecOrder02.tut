@@ -1,0 +1,97 @@
+= Nginx 配置指令的执行顺序（二） =
+
+我们前面已经知道了 L<ngx_rewrite/set> 指令用在 C<location>
+配置块中时都是在当前请求的 C<rewrite> 阶段运行的，事实上，L<ngx_rewrite>
+模块中的几乎全部指令，当应用在 C<location> 配置块中时，都运行在 C<rewrite>
+阶段，包括我们在 L<vartut/Nginx 变量漫谈（二）> 中介绍过的 L<ngx_rewrite/rewrite>
+指令（不过，当这些指令使用在 C<server> 配置块中则会运行在一个我们未提
+过的更早一些的处理阶段，C<server rewrite>）。
+
+我们在 L<vartut/Nginx 变量漫谈（二）> 中介绍过的 L<ngx_set_misc>
+模块的 L<ngx_set_misc/set_unescape_uri> 指令同
+样也运行在 C<rewrite> 阶段。特别地，L<ngx_set_misc>
+模块的指令还可以和 L<ngx_rewrite> 的指令混合在一起顺序执行。我们
+来看这样的一个例子：
+
+    :nginx
+    location /test {
+        set $a "hello%20world";
+        set_unescape_uri $b $a;
+        set $c "$b!";
+
+        echo $c;
+    }
+
+访问这个接口可以得到：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    hello world!
+
+我们看到，L<ngx_set_misc/set_unescape_uri> 指令
+前后的 L<ngx_rewrite/set> 指令都如期望的顺序一前一后地运行了
+。
+
+为了进一步确认，我们不妨再检查一下 Nginx 的“调试日志”输出（如果你还不清
+楚如何启用“调试日志”的话，可以参考 L<ordertut/（一）> 中的步骤）：
+
+    :bash
+    grep -E 'http script (value|copy|set)' t/servroot/logs/error.log
+
+过滤出来的调试日志信息如下所示：
+
+    :text
+    [debug] 11167#0: *1 http script value: "hello%20world"
+    [debug] 11167#0: *1 http script set $a
+    [debug] 11167#0: *1 http script value (post filter): "hello world"
+    [debug] 11167#0: *1 http script set $b
+    [debug] 11167#0: *1 http script copy: "!"
+    [debug] 11167#0: *1 http script set $c
+
+开头的两行信息
+
+    [debug] 11167#0: *1 http script value: "hello%20world"
+    [debug] 11167#0: *1 http script set $a
+
+就对应我们的配置语句
+
+    :nginx
+    set $a "hello%20world";
+
+而接下来的两行
+
+    [debug] 11167#0: *1 http script value (post filter): "hello world"
+    [debug] 11167#0: *1 http script set $b
+
+则对应配置语句
+
+    :nginx
+    set_unescape_uri $b $a;
+
+我们看到第一行信息与 L<ngx_rewrite/set> 指令略有区别。而且
+URI 解码操作确实如我们期望的工作了：C<"hello%20world"> 在
+这里被成功解码为了 C<"hello world">.
+
+而最后两行调试信息
+
+    [debug] 11167#0: *1 http script copy: "!"
+    [debug] 11167#0: *1 http script set $c
+
+则对应最后一条 L<ngx_rewrite/set> 语句：
+
+    :nginx
+    set $c "$b!";
+
+注意，因为这里在为 C<$c> 变量赋值时使用了 Nginx 变量插值功能，所以
+这里的第一行信息是以 C<http script copy> 起始的，后面跟着拼
+接到最终取值的字符串常量 C<"!">.
+
+把这些调试信息联系起来看，我们不难发现，我们的配置指令的实际执行顺序正是
+
+    :nginx
+    set $a "hello%20world";
+    set_unescape_uri $b $a;
+    set $c "$b!";
+
+与它们在配置文件中的书写顺序完全一致。
+
