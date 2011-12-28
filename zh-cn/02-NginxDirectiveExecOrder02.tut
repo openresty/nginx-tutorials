@@ -74,7 +74,7 @@ L<vartut/Nginx 变量漫谈（二）> 中介绍过的 L<ngx_set_misc>
     set_unescape_uri $b $a;
 
 我们看到第一行信息与 L<ngx_rewrite/set> 指令略有区别，多了
-C<(output filter)> 这个标记，而且最后显示出 URI 解码操作
+C<"(post filter)"> 这个标记，而且最后显示出 URI 解码操作
 确实如我们期望的那样工作了，即 C<"hello%20world"> 在这里被成
 功解码为 C<"hello world">.
 

@@ -55,5 +55,5 @@ wiki/%.wiki: %.tut
 	./utils/tut2wiki.pl -o $@ $<
 
 clean:
-	rm -rf html/ wiki/ index*.html *.mobi *.epub
+	rm -rf html/ wiki/ index*.html *.mobi *.epub *.pdf
 
