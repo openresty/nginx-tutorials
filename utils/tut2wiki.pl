@@ -113,6 +113,8 @@ while (<$in>) {
         "[$url $n]"
     }ge;
 
+    s{\bL<(ngx_devel_kit)>}{[https://github.com/simpl/ngx_devel_kit $1]}g;
+
     s{\bL<ngx_(\w+)>}{
         my $n = $1;
         if ($n eq 'http_core') {
