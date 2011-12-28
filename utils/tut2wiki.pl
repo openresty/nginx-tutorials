@@ -10,14 +10,20 @@ getopts('o:', \%opts) or usage();
 
 my $outfile = $opts{o};
 
-my %vartut_links = (
-    '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
-    '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wk2j.html',
-    '三' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wm63.html',
-    '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100woyb.html',
-    '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wqn7.html',
-    '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wsip.html',
-    '七' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wu5t.html',
+my %links = (
+    order =>  {
+        '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xm7t.html',
+    },
+    var => {
+        '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
+        '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wk2j.html',
+        '三' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wm63.html',
+        '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100woyb.html',
+        '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wqn7.html',
+        '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wsip.html',
+        '七' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wu5t.html',
+        '八' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wvxn.html',
+    },
 );
 
 my $infile = shift or
@@ -93,11 +99,13 @@ while (<$in>) {
         undef $in_geshi;
     }
 
-    s{\bL<vartut/([^>（）]*?（([^>]+?)）)>}{
-        my $n = $1;
-        my $key = $2;
+    s{\bL<(\w+)tut/([^>（）]*?（([^>]+?)）)>}{
+        my $tag = $1;
+        my $n = $2;
+        my $key = $3;
         my $link = $&;
-        my $url = $vartut_links{$key};
+        my $map = $links{$tag} or die "Tag $tag not found in links table";
+        my $url = $map->{$key};
         #warn "URL: $url";
         if (!defined $url) {
             die "Bad link $link\n";
@@ -128,7 +136,7 @@ while (<$in>) {
 
     s{\bL<(Nginx 变量漫谈系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
 
-    s{\bL<(Nginx 配置指令的执行顺序系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
+    s{\bL<(Nginx 配置指令的执行顺序系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_2_1.html $1]}g;
 
     s{\bL<ngx_(\w+)/(\S+)>}{
         my $n = $1;
