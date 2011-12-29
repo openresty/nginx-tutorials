@@ -13,6 +13,7 @@ my $outfile = $opts{o};
 my %links = (
     order =>  {
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xm7t.html',
+        '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xnof.html',
     },
     var => {
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',

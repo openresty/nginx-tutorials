@@ -1,0 +1,159 @@
+= Nginx 配置指令的执行顺序（三） =
+
+前面我们已经知道，除非像 L<ngx_set_misc> 模块那样使用特殊技术，
+其他模块的配置指令即使是在 C<rewrite> 阶段运行，也不能和 L<ngx_rewrite>
+模块的指令混合使用。不妨来看几个这样的例子。
+
+第三方模块 L<ngx_headers_more> 提供了一系列配置指令，用于操
+纵当前请求的请求头和响应头。其中有一条名叫 L<ngx_headers_more/more_set_input_headers>
+的指令可以在 C<rewrite> 阶段改写指定的请求头（或者在请求头不存在时自
+动创建）。这条指令总是运行在 C<rewrite> 阶段的末尾，该指令的文档中有
+这么一行标记：
+
+    :text
+    phase: rewrite tail
+
+其中的 C<rewrite tail> 的意思就是 C<rewrite> 阶段的
+末尾。
+
+既然运行在 C<rewrite> 阶段的末尾，那么也就总是会运行在 C<ngx_rewrite>
+模块的指令之后，即使我们在配置文件中把它写在前面，例如：
+
+    :nginx
+    ? location /test {
+    ?     set $value dog;
+    ?     more_set_input_headers "X-Species: $value";
+    ?     set $value cat;
+    ?
+    ?     echo "X-Species: $http_x_species";
+    ? }
+
+这个例子用到的 L<$http_XXX> 内建变量在读取时会返回当前请求中名为
+C<XXX> 的请求头，我们在 L<vartut/Nginx 变量漫谈（二）>
+中曾经简单提过
+它。需要注意的是，L<$http_XXX> 变量在匹配请求头时会自动对请求头的名
+字进行归一化，即将名字的大写字母转换为小写字母，同时把间隔符（C<->）替换
+为下划线（C<_>），所以变量名 C<$http_x_species> 才得以成
+功匹配 L<ngx_headers_more/more_set_input_headers>
+语句中设置的请求头 C<X-Species>.
+
+此例书写的指令顺序会误导我们认为 C</test> 接口输出的 C<X-Species>
+头的值是 C<dog>，
+然而实际的结果却并非如此：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    X-Species: cat
+
+显然，写在 L<ngx_headers_more/more_set_input_headers>
+指令之后的 C<set $value cat> 语句却先执行了。
+
+上面这个例子证明了即使运行在同一个请求处理阶段，分属不同模块的配置指令也可能会分
+开独立运行（除非像 L<ngx_set_misc> 等模块那样针对 L<ngx_rewrite>
+模块提供特殊支持）。换句话说，在单个请求处理阶段内部，一般也会以 Nginx 模
+块为单位进一步地划分出内部子阶段。
+
+第三方模块 L<ngx_lua> 提供的 L<ngx_lua/rewrite_by_lua>
+配置指令也和 L<ngx_headers_more/more_set_input_headers>
+一样运行在 C<rewrite> 阶段的末尾。我们来验证一下：
+
+    :nginx
+    ? location /test {
+    ?     set $a 1;
+    ?     rewrite_by_lua "ngx.var.a = ngx.var.a + 1";
+    ?     set $a 56;
+    ?
+    ?     echo $a;
+    ? }
+
+这里我们在 L<ngx_lua/rewrite_by_lua> 语句内联的 Lua
+代码中对 Nginx 变量 C<$a> 进行了自增计算。从该例的指令书写顺序上看
+，我们或许会期望输出是 C<56>，可是因为 L<ngx_lua/rewrite_by_lua>
+会在所有的 L<ngx_rewrite/set> 语句之后执行，因此结果是 C<57>：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    57
+
+显然，L<ngx_lua/rewrite_by_lua> 指令的行为不同于我们前
+面在 L<ordertut/（二）> 中介绍过的 L<ngx_lua/set_by_lua>
+指令。
+
+有的读者可能要问，既然 L<ngx_headers_more/more_set_input_headers>
+和 L<ngx_lua/rewrite_by_lua> 指令都运行在 C<rewrite>
+阶段的末尾，那么它们之间的先后顺序又是怎样的呢？答案是：不一定。我们应当避免写出
+依赖它们二者间顺序的配置。
+
+Nginx 的 C<rewrite> 阶段是一个比较早的请求处理阶段，这个阶段的
+配置指令一般用来对当前请求进行各种修改（比如对 URI 和 URL 参数进行
+改写），或者创建并初始化一系列后续处理阶段可能需要的 Nginx 变量。当然，
+也不能阻止一些用户在 C<rewrite> 阶段做一系列更复杂的事情，比如读取请
+求体，或者访
+问数据库等远方服务，毕竟有 L<ngx_lua/rewrite_by_lua>
+这样的指令可以嵌入任意复杂的 Lua 代码。
+
+在 C<rewrite> 阶段之后，有一个名叫 C<access> 的请求处理阶
+段。L<vartut/Nginx 变量漫谈（五）> 中介绍过的第三方模块 L<ngx_auth_request>
+的指令就运行在 C<access> 阶段。在 C<access> 阶段运行的配置
+指令多是执行访问控制性质的任务，比如检查用户的访问权限，检查用户的来源 IP
+地址是否合法，诸如此类。
+
+例如，标准模块 L<ngx_access> 提供的 L<ngx_access/allow>
+和 L<ngx_access/deny>
+配置指令可用于控制哪些 IP 地址可以访问，哪些不可以：
+
+    :nginx
+    location /hello {
+        allow 127.0.0.1;
+        deny all;
+
+        echo "hello world";
+    }
+
+这个 C</test> 接口被配置为只允许从本机（IP 地址为保留的 C<127.0.0.1>）访
+问，而从其他 IP 地址访问都会被拒（返回 C<403> 错误页）。L<ngx_access>
+模块自己的多条配置指令之间是按顺序执行的，直到遇到第一条满足条件的指令就不再执行
+后续的 L<ngx_access/allow> 和 L<ngx_access/deny>
+指令了。如果首先匹配的指令是 L<ngx_access/allow>，则会继续执行
+后续其他模块的指令或者跳到后续的处理阶段；而如果首先满足的是 L<ngx_access/deny>
+则会立即中止当前整个请求的处理，并立即返回 C<403> 错误页。
+所以看上面这个例子，如果
+是从本地访问
+的，则首先匹配 C<allow 127.0.0.1> 这一条语句，于是 Nginx
+就继续往下执行其他模块的指令以及后续的处理阶段；而如果是从其他机器访问，则首先匹
+配的则是 C<deny all> 这一条语句，即拒绝所有地址，它会导致 C<403>
+错误页立即
+返回给客户端。
+
+我们来实测一下。从本机访问这个接口可以得到
+
+    :bash
+    $ curl 'http://localhost:8080/hello'
+    hello world
+
+而从另一台机器访问这台机器（假设运行 Nginx 的机器地址是 C<192.168.1.101>）提
+供的接口时则得到
+
+    :bash
+    $ curl 'http://192.168.1.101:8080/hello'
+    <html>
+    <head><title>403 Forbidden</title></head>
+    <body bgcolor="white">
+    <center><h1>403 Forbidden</h1></center>
+    <hr><center>nginx/1.0.10 (without pool)</center>
+    </body>
+    </html>
+
+值得一提的是，L<ngx_access> 模块还支持使用所谓的“CIDR 记法”
+来表示一个网段
+，例如 C<169.200.179.4/24> 则
+表示路由前缀是 C<169.200.179.0>（或者说子网掩码是 C<255.255.255.0>）的
+网段。
+
+因为 L<ngx_access> 模块的指令运行在 C<access> 阶段，而
+C<access> 阶段又处于 C<rewrite> 阶段之后，所以前面我们见到
+的所有那些在 C<rewrite> 阶段运行的配置指令，都总是在 L<ngx_access/allow>
+和 L<ngx_access/deny> 之前执行，而无论它们在配置文件中的书写
+顺序是怎样的。所以，为了避免阅读配置时的混乱，我们应该总是让指令的书写顺序和它们
+的实际执行顺序保持一致。
+
