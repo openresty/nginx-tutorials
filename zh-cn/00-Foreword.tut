@@ -1,7 +1,8 @@
 = 缘起 =
 
 其实这两年为 Nginx 世界做了这么多的事情，一直想通过一系列教程性的文章把我
-的那些工作成果和所学所知都介绍给更多的朋友。现在终于下决心在新浪博客 L<http://blog.sina.com.cn/openresty> 上面用中文
+的那些工作成果和所学所知都介绍给更多的朋友。现在终于下决心在新浪博客 L<http://blog.sina.com.cn/openresty>
+上面用中文
 写点东西，每一篇东西都会有一个小主题，但次序和组织上就不那么讲究了，毕竟并不是一
 本完整的图书，或许未来我会将之整理出书也不一定。
 
@@ -58,9 +59,10 @@ L<http://github.com/agentzh/nginx-tutorials/>
 和 C<POD> 标记语言的混合物来撰写这些文章，就是那些 F<.tut> 文件
 。欢迎建立分支和提供补丁。
 
-本教程适用于 Kindle、iPad 等电子阅读器的 C<.mobi> 和 C<.epub> 等格式的电子书文件可以从下面这个位置下载：
+本教程适用于 Kindle、iPad/iPhone、Sony 等电子阅读器的 C<.mobi>、C<.epub>
+以及 C<.pdf> 等格式的电子书文件可以从下面这个位置下载：
 
-L<http://github.com/agentzh/nginx-tutorials/downloads>
+L<http://openresty.org/#eBooks>
 
 章亦春 (agentzh) 于福州家中
 
