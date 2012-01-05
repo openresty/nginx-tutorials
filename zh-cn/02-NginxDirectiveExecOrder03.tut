@@ -1,6 +1,6 @@
 = Nginx 配置指令的执行顺序（三） =
 
-前面我们已经知道，除非像 L<ngx_set_misc> 模块那样使用特殊技术，
+如前文所述，除非像 L<ngx_set_misc> 模块那样使用特殊技术，
 其他模块的配置指令即使是在 C<rewrite> 阶段运行，也不能和 L<ngx_rewrite>
 模块的指令混合使用。不妨来看几个这样的例子。
 
@@ -69,7 +69,7 @@ C<XXX> 的请求头，我们在 L<vartut/Nginx 变量漫谈（二）>
 这里我们在 L<ngx_lua/rewrite_by_lua> 语句内联的 Lua
 代码中对 Nginx 变量 C<$a> 进行了自增计算。从该例的指令书写顺序上看
 ，我们或许会期望输出是 C<56>，可是因为 L<ngx_lua/rewrite_by_lua>
-会在所有的 L<ngx_rewrite/set> 语句之后执行，因此结果是 C<57>：
+会在所有的 L<ngx_rewrite/set> 语句之后执行，所以结果是 C<57>：
 
     :bash
     $ curl 'http://localhost:8080/test'
@@ -114,7 +114,7 @@ Nginx 的 C<rewrite> 阶段是一个比较早的请求处理阶段，这个阶�
 问，而从其他 IP 地址访问都会被拒（返回 C<403> 错误页）。L<ngx_access>
 模块自己的多条配置指令之间是按顺序执行的，直到遇到第一条满足条件的指令就不再执行
 后续的 L<ngx_access/allow> 和 L<ngx_access/deny>
-指令了。如果首先匹配的指令是 L<ngx_access/allow>，则会继续执行
+指令。如果首先匹配的指令是 L<ngx_access/allow>，则会继续执行
 后续其他模块的指令或者跳到后续的处理阶段；而如果首先满足的是 L<ngx_access/deny>
 则会立即中止当前整个请求的处理，并立即返回 C<403> 错误页。
 所以看上面这个例子，如果
@@ -140,11 +140,11 @@ Nginx 的 C<rewrite> 阶段是一个比较早的请求处理阶段，这个阶�
     <head><title>403 Forbidden</title></head>
     <body bgcolor="white">
     <center><h1>403 Forbidden</h1></center>
-    <hr><center>nginx/1.0.10 (without pool)</center>
+    <hr><center>nginx</center>
     </body>
     </html>
 
-值得一提的是，L<ngx_access> 模块还支持使用所谓的“CIDR 记法”
+值得一提的是，L<ngx_access> 模块还支持所谓的“CIDR 记法”
 来表示一个网段
 ，例如 C<169.200.179.4/24> 则
 表示路由前缀是 C<169.200.179.0>（或者说子网掩码是 C<255.255.255.0>）的
