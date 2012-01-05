@@ -1,13 +1,13 @@
 = Nginx 配置指令的执行顺序（四） =
 
-L<ngx_lua> 模块在 C<access> 请求处理阶段提供了配置指令 L<ngx_lua/access_by_lua>，
-用于内联用户 Lua 代码在 C<access> 阶段的末尾执行。这条指令因为
-运行于 C<access> 阶段的末尾，所以总是运行在 L<ngx_access/allow>
-和 L<ngx_access/deny> 这样的指令之后，虽然它们同属 C<access>
+L<ngx_lua> 模块提供了配置指令 L<ngx_lua/access_by_lua>，
+用于在 C<access> 请求处理阶段插入用户 Lua 代码。这条指令
+运行于 C<access> 阶段的末尾，因此总是在 L<ngx_access/allow>
+和 L<ngx_access/deny> 这样的指令之后运行，虽然它们同属 C<access>
 阶段。一般我们通过 L<ngx_lua/access_by_lua> 在 L<ngx_access>
 这样的模块检查过客户端 IP 地址之后，再通过 Lua 代码执行一系列更为复杂的
 请求验证
-操作，比如实时查询后端数据库或者其他网络服务，以验证当前用户的身份或权限。
+操作，比如实时查询数据库或者其他后端服务，以验证当前用户的身份或权限。
 
 我们来看一个简单的例子，利用 L<ngx_lua/access_by_lua>
 来实现 L<ngx_access> 模块的 IP 地址过滤功能：
@@ -27,7 +27,7 @@ L<ngx_lua> 模块在 C<access> 请求处理阶段提供了配置指令 L<ngx_lua
 
 这里在 Lua 代码中通过引用 Nginx 标准的内建变量 L<ngx_core/$remote_addr>
 来获取字符串形式的客户端 IP 地址，然后用 Lua 的 C<if>
-语句判断该地址是否为本机地址，即是否等于 C<127.0.0.1>. 如果是本机
+语句判断是否为本机地址，即是否等于 C<127.0.0.1>. 如果是本机
 地址，则
 直接利用 Lua 的 C<return> 语句返回，让 Nginx 继续执行后续
 的请求处理阶段（包括 L<ngx_echo/echo> 指令所处的 C<content>
@@ -35,7 +35,7 @@ L<ngx_lua> 模块在 C<access> 请求处理阶段提供了配置指令 L<ngx_lua
 数 L<ngx_lua/ngx.exit> 中断当前的整个请求处理流程，直接
 返回 C<403> 错误页给客户端。
 
-这个例子在功能上完全等价于我们先前在 L<ordertut/（三）> 中介绍的
+这个例子在功能上完全等价于先前在 L<ordertut/（三）> 中介绍过的
 那个使用 L<ngx_access> 模块的例子：
 
     :nginx
@@ -51,20 +51,21 @@ L<ngx_lua> 模块在 C<access> 请求处理阶段提供了配置指令 L<ngx_lua
 
 下面我们不妨来实际测量一下这两个例子的性能差别。因为我们使用 Nginx 就是为
 了追求性能，而量化的性能比较，在工程上具有很大的现实意义，所以我们顺便介绍一
-下常用的测量技术。由于无论是 L<ngx_access> 还是 L<ngx_lua>
-在进行 IP 地址验证方面的性能都非常之高，所以为了减少测量误差，我们希望能直接
+下重要的测量技术。由于无论是 L<ngx_access> 还是 L<ngx_lua>
+在进行 IP 地址验证方面的性能都非常之高，所以为了减少测量误差，我们希望能
 对
-Nginx 的 C<access> 请求处理阶段的用时进行直接测量。为了做
+C<access> 阶段的用时进行直接测量。为了做
 到这一点，传统的做法一般会涉及到修改 Nginx 源码，自己插入专门的计时代码和
 统计输出代码，抑或是重新编译 Nginx 以启用像 C<GNU gprof> 这
 样专门的性能监测工具。
 
 幸运的是，在新一点的 Solaris, Mac OS X, 以及 FreeBSD
 等系统上存在一个叫做 C<dtrace> 的工具，可以对任意的用户程序进行微观性
-能分析（以及行为分析），而无须对用户程序的源码进行修改或者以特殊的编译器和链接器
-选项进行重新构造。因为 Mac OS X 10.5 以后就自带了 C<dtrace>，
-为方便起
-见，下面在我的 MacBook Air 笔记本上演示一下这里的测量过程。
+能分析（以及行为分析），而无须对用户程序的源码进行修改或者对用户程序进行重新编译
+。
+因为 Mac OS X 10.5 以后就自带了 C<dtrace>，
+所以为方便起见，下面在我的 MacBook Air 笔记本上演示一下这里的测量过
+程。
 
 首先，在 Mac OS X 系统中打开一个命令行终端，在某一个文件目录下面创
 建一个名为 F<nginx-access-time.d> 的文件，并编辑内容如下
@@ -104,25 +105,24 @@ Nginx 的 C<access> 请求处理阶段的用时进行直接测量。为了做
 
 这个 F<.d> 文件中的代码是用 C<dtrace> 工具自己提供的 C<D>
 语言来编写的
-（注意，这里的 C<D> 语言并不是由 Walter Bright 作为另一种“
+（注意，这里的 C<D> 语言并不同于 Walter Bright 作为另一种“
 更好的 C++”而设计的 C<D> 语言）。由于本系列教程并不打算介绍如何编写
 C<dtrace> 的 C<D> 脚本，同时理解这个脚本需要不少有关 Nginx
-内部源码实现的细节，所以这里我们不展开介绍。大家只需要知道这个脚本的功能是用来统
-计
-指定的 Nginx worker 进
-程在处理每个请求时平均花费在 C<access> 阶段上的时间。
+内部源码实现的细节，所以这里我们不展开介绍。大家只需要知道这个脚本的功能是：统
+计指定的 Nginx worker 进程在处理每个请求时，平均花费在 C<access>
+阶段上的时间。
 
 现在来演示一下这个 C<D> 脚本的运行方法。这个脚本接受一个命令行参数用于指定
 监视的 Nginx worker 进程的进程号（pid）。由于 Nginx 支持
 多 worker 进程，所以我们测试时发起的 HTTP 请求可能由其中任意一个
 worker
-进程所服务。为了确保所有测试请求都为固定的 worker 进程服务，不妨在
+进程服务。为了确保所有测试请求都为固定的 worker 进程处理，不妨在
 F<nginx.conf> 配置文件中指定只启用一个 worker 进程：
 
     :nginx
     worker_processes 1;
 
-重启 Nginx 服务器之后，我们可以利用 C<ps> 命令得到当前 worker
+重启 Nginx 服务器之后，可以利用 C<ps> 命令得到当前 worker
 进程的进程号：
 
     :bash
@@ -133,29 +133,28 @@ F<nginx.conf> 配置文件中指定只启用一个 worker 进程：
     :text
     10975   ??  S      0:34.28 nginx: worker process
 
-其中第一列的数值便是我的 nginx worker 进程的进程号。如果你
+其中第一列的数值便是我的 nginx worker 进程的进程号，C<10975>。
+如果你
 得到的输出不止一行，则通常意味着你的系统中同时运行着多个 Nginx 服务器实例
 ，或者当前 Nginx 实例启用了多个 worker 进程。
 
-接下来使用刚刚得到的 worker 进程号以及 root 身份来运行我们的 F<nginx-access-time.d>
+接下来使用刚刚得到的 worker 进程号以及 root 身份来运行 F<nginx-access-time.d>
 脚本：
 
     :bash
     # ./nginx-access-time.d 10975
 
-如果一切正常，会看到这样一行输出：
+如果一切正常，则会看到这样一行输出：
 
     :text
     dtrace: script './nginx-access-time.d' matched 4 probes
 
-这行输出是说，我们的 C<D> 脚本已成功向指定的 Nginx worker 进
-程动态植入了 4 个 C<dtrace> “探针”（probe）。紧接着这个脚本
-就挂起了，这表明 C<dtrace> 工具正在按照我们的 C<D>
-脚本的指示，通过那 4 个“探针”，对进程号为 C<10975> 的 Nginx
-worker 进程进行持续监视。
+这行输出是说，我们的 C<D> 脚本已成功向目标进程动态植入了 4 个 C<dtrace>
+“探针”（probe）。紧接着这个脚本就挂起了，表明 C<dtrace> 工具
+正在对进程 C<10975> 进行持续监视。
 
 然后我们再打开一个新终端，在那里使用 C<curl> 这样的工具多次请求我们正在
-监视中的接口
+监视的接口
 
     :bash
     $ curl 'http://localhost:8080/hello'
@@ -179,7 +178,7 @@ worker 进程进行持续监视。
 求在 C<access> 阶段的平均用时（以纳秒，即 10 的负 9 次方秒为单
 位）。
 
-通过上面介绍的步骤，可以通过我们的 F<nginx-access-time.d>
+通过上面介绍的步骤，可以通过 F<nginx-access-time.d>
 脚本分别统计出各种不同的 Nginx 配置下 C<access> 阶段的平均
 用时。针对我们感兴趣的三种情况可以进行三组平行试验，即使用 L<ngx_access>
 过滤 IP 地址的情况
@@ -187,10 +186,10 @@ worker 进程进行持续监视。
 ，以及
 不在 C<access> 阶段使用任何配置指令的情况。最后一种情况属于“空白对照
 组”，
-可以用于校正测试过程中因 C<dtrace> 探针本身等其他因素而引入的“系统误
+用于校正测试过程中因 C<dtrace> 探针等其他因素而引入的“系统误
 差”。
-另外，为了最小化各种不可控的“随机误差”，可以采用 C<ab> 这样的批量
-测试工具来取代 C<curl> 来发起连续十万次以上的请求，例如
+另外，为了最小化各种不可控的“随机误差”，可以用 C<ab> 这样的批量
+测试工具来取代 C<curl> 发起连续十万次以上的请求，例如
 
     :bash
     $ ab -k -c1 -n100000 'http://127.0.0.1:8080/hello'
@@ -202,9 +201,9 @@ worker 进程进行持续监视。
     :text
     ngx_access 组               18146
     access_by_lua 组            35011
-    空白对照组                  15887
+    空白对照组                   15887
 
-我们把前两组的结果分别减去“空白对照组”的结果可以得到
+把前两组的结果分别减去“空白对照组”的结果可以得到
 
     :text
     ngx_access 组               2259
@@ -212,17 +211,17 @@ worker 进程进行持续监视。
 
 可以看到，L<ngx_access> 组比 L<ngx_lua/access_by_lua>
 组快了大约一个数量级，这正是我们所预期的。不过其绝对时间差是极小的，对于我的 C<Intel
-Core 2 Duo 1.86 GHz> 的 CPU 而言，也只有区区十几微秒，
+Core2Duo 1.86 GHz> 的 CPU 而言，也只有区区十几微秒，
 或者说是在十万分之一秒的量级。
 
 当然，上面使用 L<ngx_lua/access_by_lua> 的例子还可以通
 过换用 L<ngx_core/$binary_remote_addr> 内建变量
 进行优化，因为 L<ngx_core/$binary_remote_addr>
 读出的是二进制形式的 IP 地址，而 L<ngx_core/$remote_addr>
-则返回更长一些的字符串形式的地址，比如二进制的 IPv4 地址就只有 4 个字节
-。更短的地址意味着用 Lua 进行字符串比较时通常可以更快。
+则返回更长一些的字符串形式的地址。更短的地址意味着用 Lua 进行字符串比较时通
+常可以更快。
 
-值得提醒的是，如果你按 L<ordertut/（一）> 中介绍的方法为 Nginx
+值得注意的是，如果按 L<ordertut/（一）> 中介绍的方法为 Nginx
 开启了“调试日志”的话，上面统计出来的时间会显著增加，因为“调试日志”自身的开销
 是很大的。
 

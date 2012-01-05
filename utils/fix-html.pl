@@ -7,6 +7,9 @@ use encoding 'utf8';
 local $/;
 my $src = <>;
 
+if ($src !~ m/^\s*<p\b/si) {
+    $src = "<p>$src";
+}
 $src =~ s{(<pre.*?)(>.*?<)(/pre>)}{$1.fmt($2).$3}ges;
 $src =~ s{(<code.*?)(>.*?<)(/code>)}{$1.fmt($2).$3}ges;
 $src =~ s!</p><p>!</p><br><p>&nbsp; &nbsp; !gs;
