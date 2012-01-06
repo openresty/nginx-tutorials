@@ -15,6 +15,8 @@ my %links = (
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xm7t.html',
         '二' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xnof.html',
         '三' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xpff.html',
+        '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xyo1.html',
+        '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y05x.html',
     },
     var => {
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
