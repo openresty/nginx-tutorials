@@ -1,0 +1,200 @@
+= Nginx 配置指令的执行顺序（五） =
+
+Nginx 的 C<content> 阶段是所有请求处理阶段中最为重要的一个，因
+为运行在这个阶段的配置指令一般都肩负着生成“内容”（content）并输出 HTTP
+响应的使命。正因为其重要性，这个阶段的配置指令也异常丰富，例如前面我们一
+直
+在示例中广泛使用的 L<ngx_echo/echo> 指令，在 L<vartut/Nginx
+变量漫谈（二）> 中接触到的 L<ngx_echo/echo_exec> 指令，
+L<vartut/Nginx 变量漫谈（三）> 中接触到的 L<ngx_proxy/proxy_pass>
+指令，L<vartut/Nginx 变量漫谈（五）> 中介绍过的 L<ngx_echo/echo_location>
+指令，以及 L<vartut/Nginx 变量漫谈（七）> 中介绍过的 L<ngx_lua/content_by_lua>
+指令，都运行在这个阶段。
+
+C<content> 阶段属于一个比较靠后的处理阶段，运行在先前介绍过的 C<rewrite>
+和 C<access> 这两个阶段之后。当和 C<rewrite>、C<access>
+阶段的指令一起使用时，这个阶段的指令总是最后运行，例如：
+
+    :nginx
+    location /test {
+        # rewrite phase
+        set $age 1;
+        rewrite_by_lua "ngx.var.age = ngx.var.age + 1";
+
+        # access phase
+        deny 10.32.168.49;
+        access_by_lua "ngx.var.age = ngx.var.age * 3";
+
+        # content phase
+        echo "age = $age";
+    }
+
+这个例子中各个配置指令的执行顺序便是它们的书写顺序。测试结果完全符合预期：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    age = 6
+
+即使改变它们的书写顺序，也不会影响到执行顺序。其中，L<ngx_rewrite/set>
+指令来自
+L<ngx_rewrite> 模块，运行于 C<rewrite> 阶段；而 L<ngx_lua/rewrite_by_lua>
+指令来自 L<ngx_lua> 模块，运行于 C<rewrite> 阶段的末尾；接
+下来，L<ngx_access/deny> 指令来自 L<ngx_access>
+模块，运行于 C<access> 阶段；再下来，L<ngx_lua/access_by_lua>
+指令同样来自 L<ngx_lua> 模块，运行于 C<access> 阶段的末尾
+；最后，我们的老朋友 L<ngx_echo/echo> 指令则来自 L<ngx_echo>
+模块，运行在 C<content> 阶段。
+
+这个例子展示了通过同时使用多个处理阶段的配置指令来实现多个模块协同工作的效果。在
+这
+个过程中，Nginx 变量则经常扮演着在指令间乃至模块间传递（小份）数据的角色。
+这些配置指令的执行顺序，也强烈地受到请求处理阶段的影响。
+
+进一步地，在 C<rewrite> 和 C<access> 这两个阶段，多个模块
+的配置指令可以同时使用，譬如上例中的 L<ngx_rewrite/set> 指令
+和
+L<ngx_lua/rewrite_by_lua> 指令同处 C<rewrite>
+阶段，而 L<ngx_access/deny> 指令和 L<ngx_lua/access_by_lua>
+指令则同处 C<access> 阶段。但不幸的是，这并不适用于 C<content>
+阶段。
+
+Nginx 模块在向 C<content> 阶段注册配置指令时，本质上是在当前的
+C<location> 配置块中注册所谓的“内容处理程序”（content handler）。
+每一个 C<location> 只能有一个“内容处理程序”，因此，当在 C<location>
+中同时使用多个模块的 C<content> 阶段指令时，只有其中一个模块能成功
+注册“内容处理程序”。考虑下面这个有问题的例子：
+
+    :nginx
+    ? location /test {
+    ?     echo hello;
+    ?     content_by_lua 'ngx.say("world")';
+    ? }
+
+这里，L<ngx_echo> 模块的 L<ngx_echo/echo> 指令和
+L<ngx_lua> 模块的 L<ngx_lua/content_by_lua>
+指令同处 C<content> 阶段，于是只有其中一个模块能注册和运行这个 C<location>
+的“内容处理程序”：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    world
+
+实际运行结果表明，写在后面的 L<ngx_lua/content_by_lua>
+指令反而胜出了，而 L<ngx_echo/echo> 指令则完全没有运行。具体哪
+一个模块的指令会胜出是不确定的，例如把上例中的 L<ngx_echo/echo>
+语句和 L<ngx_lua/content_by_lua> 语句交换顺序，则输出
+就会变成 C<hello>，即 L<ngx_echo> 模块胜出。所以我们应当
+避免在同一个 C<location> 中使用多个模块的 C<content> 阶
+段指令。
+
+将上例中的 L<ngx_lua/content_by_lua> 指令替换
+为 L<ngx_echo/echo> 指令就可以如愿了：
+
+    :nginx
+    location /test {
+        echo hello;
+        echo world;
+    }
+
+测试结果证明了这一点：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    hello
+    world
+
+这里使用多条 L<ngx_echo/echo> 指令是没问题的，因为它们同属 L<ngx_echo>
+模块，而且 L<ngx_echo> 模块规定和实现了它们之间的执行顺序。值得一提
+的是，并非所有模块的指令都支持在同一个 C<location> 中被使用多次，例
+如 L<ngx_lua/content_by_lua> 就只能使用一次，所以下面
+这个例子是错误的：
+
+    :nginx
+    ? location /test {
+    ?     content_by_lua 'ngx.say("hello")';
+    ?     content_by_lua 'ngx.say("world")';
+    ? }
+
+这个配置在 Nginx 启动时就会报错：
+
+    :text
+    [emerg] "content_by_lua" directive is duplicate ...
+
+正确的写法应当是：
+
+    :nginx
+    location /test {
+        content_by_lua 'ngx.say("hello") ngx.say("world")';
+    }
+
+即在 L<ngx_lua/content_by_lua> 内联的 Lua 代码中
+调用两次 L<ngx_lua/ngx.say> 函数，而不是在当前 C<location>
+中使用两次 L<ngx_lua/content_by_lua> 指令。
+
+类似地，L<ngx_proxy> 模块的 L<ngx_proxy/proxy_pass>
+指令和 L<ngx_echo/echo> 指令也不能同时用在一个 C<location>
+中，因为它们也同属 C<content> 阶段。不少 Nginx 新手都会犯类似
+下
+面这样的错误：
+
+    :nginx
+    ? location /test {
+    ?     echo "before...";
+    ?     proxy_pass http://127.0.0.1:8080/foo;
+    ?     echo "after...";
+    ? }
+    ?
+    ? location /foo {
+    ?     echo "contents to be proxied";
+    ? }
+
+这个例子表面上是想在 L<ngx_proxy> 模块返回的内容前后，通过 L<ngx_echo>
+模块的 L<ngx_echo/echo> 指令分别输出字符串 C<"before...">
+和 C<"after...">，但其实只有其中一个模块能在 C<content>
+阶段运行。测试结果表明，在这个例子中是 L<ngx_proxy> 模块胜出，而
+L<ngx_echo> 模块的 L<ngx_echo/echo> 指令根本没有运
+行：
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    contents to be proxied
+
+要实现这个例子希望达到的效果，需要改用 L<ngx_echo> 模块提供的
+L<ngx_echo/echo_before_body> 和 L<ngx_echo/echo_after_body>
+这两条配置指令：
+
+    :nginx
+    location /test {
+        echo_before_body "before...";
+        proxy_pass http://127.0.0.1:8080/foo;
+        echo_after_body "after...";
+    }
+
+    location /foo {
+        echo "contents to be proxied";
+    }
+
+测试结果表明这一次我们成功了：
+
+    $ curl 'http://localhost:8080/test'
+    before...
+    contents to be proxied
+    after...
+
+配置指令 L<ngx_echo/echo_before_body> 和 L<ngx_echo/echo_after_body>
+之所以可以和其他模块运行在 C<content> 阶段的指令一起工作，是因为它们
+运行在 Nginx 的“输出过滤器”中。前面我们在 L<ordertut/（一）>
+中分析 L<ngx_echo/echo> 指令产生的“调试日志”时
+已经知道，Nginx 在输出响应体数据时都会调用“输出过滤器”，所以
+L<ngx_echo> 模块才有机会在“输出过滤器”中对 L<ngx_proxy>
+模块产生的响应体输出进行修改（即在首尾添加新的内容）。值得一提的是，“输出过滤器
+”并不属于 L<ordertut/（一）> 中提到的那 11 个请
+求处理阶段（毕竟许多阶段都可以通过输出响应
+体数据来调用“输出过滤器”），但这并不妨碍 L<ngx_echo/echo_before_body>
+和 L<ngx_echo/echo_after_body> 指令在文档中标记
+下面这一行：
+
+    phase: output filter
+
+这一行的意思是，当前配置指令运行在“输出过滤器”这个特殊的阶段。
+
