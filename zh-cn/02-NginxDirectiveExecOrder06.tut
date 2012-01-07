@@ -1,0 +1,147 @@
+= Nginx 配置指令的执行顺序（六） =
+
+前面我们在 L<ordertut/（五）> 中提到，在一个 C<location>
+中使用 C<content> 阶段指令时，通常情况下就是对应的 Nginx
+模块注册该 C<location> 中的“内容处理程序”。那么当一个 C<location>
+中未使用任何 C<content> 阶段的指令，即没有模块注册“内容处理程序”时
+，C<content> 阶段会发生什么事情呢？谁又来担负起生成内容和输出响应的重
+担呢？答案就是那些把当前请求的 URI 映射到文件系统的静态资源服务模块。当存在
+“内容处理程序”时，这些静态资源服务模块并不会起作用；反之，请求的处理权就会自动
+落到这些模块上。
+
+Nginx 一般会在 C<content> 阶段安排三个这样的静态资源服务模块（除
+非你的 Nginx 在构造时显式禁用了这三个模块中的一个或者多个，又或者启用了这
+种类型的其他模块）。
+按照它们在 C<content> 阶段的运行顺序，依次是 L<ngx_index>
+模块，L<ngx_autoindex> 模块，以及 L<ngx_static>
+模块。下面就来逐一介绍一下这三个模块。
+
+L<ngx_index> 和 L<ngx_autoindex> 模块都只会
+作用于那些 URI 以 C</> 结尾的请求，例如请求 C<GET /cats/>，
+而对于不以 C</> 结尾的请求则会直接忽略，
+同时把处理权移交给 C<content> 阶段的下一个模块。而 L<ngx_static>
+模块则刚好相反，直接忽略那些 URI 以 C</> 结尾的请求。
+
+L<ngx_index> 模块主要用于在文件系统目录中自动查找指定的首页文件，类
+似 F<index.html> 和 F<index.htm> 这样的，例如：
+
+    :nginx
+    location / {
+        root /var/www;
+        index index.htm index.html;
+    }
+
+这样，当用户请求 C</> 地址时，Nginx 就会自动在 L<ngx_core/root>
+配置指令指定的文件系统目录下依次寻找 F<index.htm> 和 F<index.html>
+这两个文件。如果 F<index.htm> 文件存在，则直接发起“内部跳转”到
+C</index.htm> 这个新的地址；而如果 F<index.htm> 文件
+不存在，则继续检查 F<index.html> 是否存在。如果存在，同样发起“内
+部跳转”到 C</index.html>；如果 F<index.html> 文件
+仍然不存在，则放弃处理权给 C<content>
+阶段的下一个模块。
+
+我们前面已经在 L<vartut/Nginx 变量漫谈（二）> 中提到，
+L<ngx_echo/echo_exec>
+指令和 L<ngx_rewrite/rewrite> 指令可以发起“内部跳转”。
+这
+种跳转会自动修改当前请求的 URI，并且重新匹配与之对应的 C<location>
+配置块，再重新执行 C<rewrite>、C<access>、C<content>
+等处理阶段。因为是“内部跳转”，所以有别于 HTTP 协议中定义的基于
+302
+和 301 响应的“外部跳转”，最终用户的浏览器的地址栏也不会发生变化，依然是
+原来的 URI 位置。而 L<ngx_index> 模块一旦找到了 L<ngx_index/index>
+指令中列举的文件之后，就会发起这样的“内部跳转”，仿佛用户是直接请求的这个文件所
+对
+应的 URI 一样。
+
+为了进一步确认 L<ngx_index> 模块在找到文件时的“内部跳转”行为，我
+们不妨设计下面这个小例子：
+
+    :nginx
+    location / {
+        root /var/www;
+        index index.html;
+    }
+
+    location /index.html {
+        set $a 32;
+        echo "a = $a";
+    }
+
+此时我们在本机的 F</var/www/> 目录下创建一个空白的 F<index.html>
+文件，并确保该文件的权限设置对于运行 Nginx worker 进程的帐户可读。
+然后我们来请求一下根位置（C</>）：
+
+    :bash
+    $ curl 'http://localhost:8080/'
+    a = 32
+
+这里发生了什么？为什么输出不是 F<index.html> 文件的内容（即空白）？
+其实真实的处理过程是这样的：首先对于用户的原始请求 C<GET />，Nginx
+匹配出
+C<location /> 来处理它，然后 C<content> 阶段的 L<ngx_index>
+模块在 F</var/www/> 下找到了 F<index.html>，于是立即
+发起一个到 C</index.html> 位置的“内部跳转”。到这里，相信大家都
+不会有问题。接下来有趣的事情发生了！在重新为 C</index.html> 这个
+新位置匹配 C<location> 配置块时，C<location /index.html>
+的优先级要高于 C<location />，因为 C<location> 块按照
+URI 前缀来匹配时遵循所谓的“最长子串匹配语义”。这样，在进入 C<location
+/index.html> 配置块之后，又重新开始执行 C<rewrite>
+、C<access>、以及 C<content> 等阶段。最终输出 C<a
+= 32> 自然也就在情理之中了。
+
+我们接着研究上面这个例子。如果此时把 F</var/www/index.html>
+文件删除，再访问 C</> 又会发生什么事情呢？答案是返回 C<403 Forbidden>
+出错页。为什么呢？因为 L<ngx_index> 模块找不到 L<ngx_index/index>
+指令指定的文件（在这里就是 F<index.html>），接着把处理权转给 C<content>
+阶段的后续模块，而后续的模块也都无法处理这个请求，于是 Nginx 只好放弃，输
+出了错误页，并且在 Nginx 错误日志中留下了类似
+这一行信息：
+
+    :text
+    [error] 28789#0: *1 directory index of "/var/www/" is forbidden
+
+所谓 C<directory index> 便是生成“目录索引”的意思，典型的方
+式就是生成一个网页，上面列举出 C</var/www/> 目录下的所有文件和子目
+录。而运行在 L<ngx_index> 模块之后的 L<ngx_autoindex>
+模块就可以用于自动生成这样的“目录索引”网页。我们来把上例修改一下：
+
+    :nginx
+    location / {
+        root /var/www;
+        index index.html;
+        autoindex on;
+    }
+
+此时仍然保持文件系统中的 F</var/www/index.html> 文件不存
+在。我们再访问 C</> 位置时，就会得到一张漂亮的网页：
+
+    :bash
+    $ curl 'http://localhost:8080/'
+    <html>
+    <head><title>Index of /</title></head>
+    <body bgcolor="white">
+    <h1>Index of /</h1><hr><pre><a href="../">../</a>
+    <a href="cgi-bin/">cgi-bin/</a>  08-Mar-2010 19:36   -
+    <a href="error/">error/</a>      08-Mar-2010 19:36   -
+    <a href="htdocs/">htdocs/</a>    05-Apr-2010 03:55   -
+    <a href="icons/">icons/</a>      08-Mar-2010 19:36   -
+    </pre><hr></body>
+    </html>
+
+生成的 HTML 源码显示，我本机的 F</var/www/> 目录下还有 F<cgi-bin/>,
+F<error/>, F<htdocs/>, 以及 F<icons/> 这几个子
+目录。在你的系统中尝试上面的例子，输出很可能会不太一样。
+
+值得一提的是，当你的文件系统中存在 F</var/www/index.html>
+时，优先运行的 L<ngx_index> 模块就会发起“内部跳转”，根本轮不到
+L<ngx_autoindex> 执行。感兴趣的读者可以自己测试一下。
+
+在 C<content> 阶段默认“垫底”的最后一个模块便是极为常用的 L<ngx_static>
+模块。这个模块主要实现静态文件服务的功能。比方说，一个网站的静态资源，包
+括静态 F<.html> 文件、静态 F<.css> 文件、静态 F<.js>
+文件、以及静态图片文件等等，全部可以通过这个模块对外服务。前面介绍的 L<ngx_index>
+模块虽然可以在指定的首页文件存在时发起“内部跳转”，但真正把相应的首页文件服
+务出去（即把该文件的内容作为响应体数据输出，并设置相应的响应头），还是得靠这个
+L<ngx_static> 模块来完成。
+
