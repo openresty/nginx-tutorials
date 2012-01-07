@@ -17,6 +17,7 @@ my %links = (
         '三' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xpff.html',
         '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xyo1.html',
         '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y05x.html',
+        '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y1f1.html',
     },
     var => {
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
@@ -121,7 +122,10 @@ while (<$in>) {
 
     s{\bL<ngx_(\w+)>}{
         my $n = $1;
-        if ($n eq 'http_core') {
+        if ($n eq 'static') {
+            "<code>ngx_static</code>"
+
+        } elsif ($n eq 'http_core') {
             "[http://nginx.org/en/docs/http/ngx_http_core_module.html ngx_$n]"
 
         } elsif ($n eq 'auth_request') {
