@@ -55,10 +55,11 @@ L<ngx_rewrite> 模块，运行于 C<rewrite> 阶段；而 L<ngx_lua/rewrite_by_l
 和
 L<ngx_lua/rewrite_by_lua> 指令同处 C<rewrite>
 阶段，而 L<ngx_access/deny> 指令和 L<ngx_lua/access_by_lua>
-指令则同处 C<access> 阶段。但不幸的是，这并不适用于 C<content>
+指令则同处 C<access> 阶段。但不幸的是，这通常不适用于 C<content>
 阶段。
 
-Nginx 模块在向 C<content> 阶段注册配置指令时，本质上是在当前的
+绝大多数 Nginx 模块在向 C<content> 阶段注册配置指令时，本质上
+是在当前的
 C<location> 配置块中注册所谓的“内容处理程序”（content handler）。
 每一个 C<location> 只能有一个“内容处理程序”，因此，当在 C<location>
 中同时使用多个模块的 C<content> 阶段指令时，只有其中一个模块能成功

@@ -7,8 +7,9 @@
 而另一种则叫做“子请求”（subrequest）。我们先来介绍一下它们。
 
 所谓“主请求”，就是由 HTTP 客户端从 Nginx 外部发起的请求。我们前面
-见到的所有例子都只涉及到“主请求”，包括那两个使用 L<ngx_echo/echo_exec>
-和 L<ngx_rewrite/rewrite> 指令发起“内部跳转”的例子。
+见到的所有例子都只涉及到“主请求”，包括 L<vartut/（二）> 中那两个使
+用 L<ngx_echo/echo_exec> 和 L<ngx_rewrite/rewrite>
+指令发起“内部跳转”的例子。
 
 而“子请求”则是由 Nginx 正在处理的请求在 Nginx 内部发起的一种
 级联请求。“子请求”在外观上很像 HTTP 请求，但实现上却和 HTTP 协议乃
