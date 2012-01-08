@@ -77,12 +77,13 @@ L<ngx_echo/echo_exec>
     a = 32
 
 这里发生了什么？为什么输出不是 F<index.html> 文件的内容（即空白）？
-其实真实的处理过程是这样的：首先对于用户的原始请求 C<GET />，Nginx
+首先对于用户的原始请求 C<GET />，Nginx
 匹配出
 C<location /> 来处理它，然后 C<content> 阶段的 L<ngx_index>
 模块在 F</var/www/> 下找到了 F<index.html>，于是立即
-发起一个到 C</index.html> 位置的“内部跳转”。到这里，相信大家都
-不会有问题。接下来有趣的事情发生了！在重新为 C</index.html> 这个
+发起一个到 C</index.html> 位置的“内部跳转”。
+
+到这里，相信大家都不会有问题。接下来有趣的事情发生了！在重新为 C</index.html> 这个
 新位置匹配 C<location> 配置块时，C<location /index.html>
 的优先级要高于 C<location />，因为 C<location> 块按照
 URI 前缀来匹配时遵循所谓的“最长子串匹配语义”。这样，在进入 C<location
