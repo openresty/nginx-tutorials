@@ -27,7 +27,7 @@ L<ngx_index> 模块主要用于在文件系统目录中自动查找指定的首�
 
     :nginx
     location / {
-        root /var/www;
+        root /var/www/;
         index index.htm index.html;
     }
 
@@ -59,7 +59,7 @@ L<ngx_echo/echo_exec>
 
     :nginx
     location / {
-        root /var/www;
+        root /var/www/;
         index index.html;
     }
 
@@ -109,7 +109,7 @@ URI 前缀来匹配时遵循所谓的“最长子串匹配语义”。这样，�
 
     :nginx
     location / {
-        root /var/www;
+        root /var/www/;
         index index.html;
         autoindex on;
     }
