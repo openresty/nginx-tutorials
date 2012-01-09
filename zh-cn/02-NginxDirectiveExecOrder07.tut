@@ -37,7 +37,7 @@
 以及 C<Last-Modified> 等响应头。
 
 为了确认 L<ngx_static> 模块确实运行了，可以启用 L<ordertut/（一
-）> 中介绍过的 Nginx “调试日志”，然后再次请求 L</index.html>
+）> 中介绍过的 Nginx “调试日志”，然后再次请求 C</index.html>
 这个接口。此时，在 Nginx 错误日志文件中可以看到类似下面这一行的调试信息：
 
     [debug] 3033#0: *1 http static fd: 8
