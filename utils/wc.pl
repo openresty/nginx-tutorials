@@ -44,8 +44,11 @@ for my $infile (@ARGV) {
     close $in;
 }
 
+my $rough_wc = int($wc * 1.2);
+
 print "$hanc han chars found.\n";
 print "$wc words found.\n";
+print "$rough_wc rough words found.\n";
 print "$lc lines found.\n";
 print "$c chars found.\n";
 
