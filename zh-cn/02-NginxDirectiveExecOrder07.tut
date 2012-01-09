@@ -1,0 +1,134 @@
+= Nginx 配置指令的执行顺序（七） =
+
+来看一个 L<ngx_static> 模块服务磁盘文件的例子：
+
+    :nginx
+    location / {
+        root /var/www/;
+    }
+
+同时在本机的 F</var/www/> 目录下创建两个文件，一个文件是 F<index.html>，
+内容是一行文本 C<this is my home>；另一个文件是 F<hello.html>，
+内容是一行文本 C<hello world>. 同时注意这两个文件的权限设置，确
+保它们都对运行 Nginx worker 进程的系统帐户可读。
+
+现在来通过 HTTP 协议请求一下这两个文件所对应的 URI：
+
+    :bash
+    $ curl 'http://localhost:8080/index.html'
+    this is my home
+
+    $ curl 'http://localhost:8080/hello.html'
+    hello world
+
+我们看到，先前创建的那两个磁盘文件的内容被分别输出了。
+
+不妨来分析一下这里发生的事情：C<location /> 中没有使用运行在 C<content>
+阶段的模块指令，于是也就没有模块注册这个 C<location> 的“内容处理程
+序”，处理权便自动落到了在 C<content> 阶段“垫底”的那 3 个静态资
+源服务模块。首先运行的 L<ngx_index> 和 L<ngx_autoindex>
+模块先后看到当前请求的 URI，C</index.html> 和 C</hello.html>，
+并不以 C</> 结尾，于是直接被略过，处理权最终转给了最后运行的 L<ngx_static>
+模块。L<ngx_static> 模块根据 L<ngx_core/root> 指
+令指定的“文档根目录”（document root），分别将请求 URI C</index.html>
+和 C</hello.html> 映射为文件系统路径 F</var/www/index.html>
+和 F</var/www/hello.html>，然后确认这两个文件存在后，将它
+们的内容分别作为响应体输出，并自动设置 C<Content-Type>、C<Content-Length>
+以及 C<Last-Modified> 等响应头。
+
+为了确认 L<ngx_static> 模块确实运行了，可以启用 L<ordertut/（一
+）> 中介绍过的 Nginx “调试日志”，然后再次请求 L</index.html>
+这个接口。此时，在 Nginx 错误日志文件中可以看到类似下面这一行的调试信息：
+
+    [debug] 3033#0: *1 http static fd: 8
+
+这一行信息便是 L<ngx_static> 模块生成的，其含义是“正在输出的静态
+文件的描述符是数字 C<8>”。当然，具体的文件描述符编号会经常发生变化，这里只
+是我机
+器的一次典型运行的结果。值得一提的是，能生成这一行调试信息的还有标准的 L<ngx_static_gzip>
+模块，但它默认是不启用的，后面会专门介绍到这个模块。
+
+注意上面这个例子中使用的 L<ngx_core/root> 配置指令只起到了声明
+“文档根目录”的作用，并不是它开启了 L<ngx_static> 模块。L<ngx_static>
+模块总是处于开启状态，但是否轮得到它执行就要看 C<content> 阶段先于它
+运行的那些模块是否“弃权”了。为了进一步确认这一点，来看下面这个空白 C<location>
+的定义：
+
+    :nginx
+    location / {
+    }
+
+因为没有配置 L<ngx_core/root> 指令，所以在访问这个接口时，Nginx
+会自动计算出一个缺省的“文档根目录”。该缺省值是取所谓的“配置前缀”（configure
+prefix）路径下的 F<html/> 子目录。举一个例子，假设“配置前缀”是
+F</foo/bah/>，
+则缺省的“文档根目录”便是 F</foo/bar/html/>.
+
+那么“配置前缀
+”是由什么来决定的呢？默认情况下，就是 Nginx 安装时的根目录（或者说 Nginx
+构造时传递给它的F<./configure> 的 C<--prefix> 选项的
+路径值）。如果 Nginx 安装到了 C</usr/local/nginx/>
+下，则“配置前缀”便是 C</usr/local/nginx/>，同时默认的“文
+档根目录”便是 C</usr/local/nginx/html/>. 不过，我们
+也可以在启动 Nginx 的时候，通过 C<--prefix> 命令行选项临时指
+定自
+己的“配置前缀”路径。假设我们启动 Nginx 时使用的命令是
+
+    :bash
+    nginx -p /home/agentzh/test/
+
+则对于该服务器实例，其“配置前缀”便是 F</home/agentzh/test/>，
+而默认的“文档根目录”便是 F</home/agentzh/test/html/>.
+“配置前缀”不仅会决定默认的“文档根目录”，还决定着 Nginx 配置文件中许多
+相对路径值如何解释为绝对路径，后面我们还会看到许多需要引用到“配置前缀”的例子。
+
+获取当前“文档根目录”路径有一个非常简便的方法，那就是请求一个肯定不存在的文件所
+对应的资源名，例如：
+
+    :nginx
+    $ curl 'http://localhost:8080/blah-blah.txt'
+    <html>
+    <head><title>404 Not Found</title></head>
+    <body bgcolor="white">
+    <center><h1>404 Not Found</h1></center>
+    <hr><center>nginx/1.0.10 (without pool)</center>
+    </body>
+    </html>
+
+我们会很自然地得到 C<404> 错误页。此时再看 Nginx 错误日志文件，应
+该会看到类似下面这一行错误消息：
+
+    :text
+    [error] 9364#0: *1 open() "/home/agentzh/test/html/blah-blah.txt" failed (2: No such file or directory)
+
+这条错误消息是 L<ngx_static> 模块打印出来的，因为它并不能在文件系
+统的对应路径上找到名为 F<blah-blah.txt> 的文件。因为这条错误信
+息中包含有 L<ngx_static> 试图打开的文件的绝对路径，所以从这个路径
+不难看出，当前的“文档根目录”是 F</home/agentzh/test/html/>.
+
+很多初学者会想当然地把 C<404> 错误理解为某个 C<location> 不
+存在，其实上面这个例子表明，即使 C<location> 成功匹配，相关的模块正
+确运行，也是会返回 C<404> 错误页的。因为决定着 C<404> 错误页的是
+抽象的“资源”是否存在，而非某个 C<location> 是否存在。
+
+初学者常犯的一个错误是忘记配置 C<content> 阶段的模块指令，而他们自己
+又并不期望使用 C<content> 阶段缺省运行的静态资源服务，例如：
+
+    :nginx
+    location /auth {
+        access_by_lua '
+            -- a lot of Lua code omitted here...
+        ';
+    }
+
+显然，这个 F</auth> 接口只定义了 C<access> 阶段的配置指令，
+即 L<ngx_lua/access_by_lua>，并未定义任何 C<content>
+阶段的配置指令。于是当我们请求 C</auth> 接口时，在 C<access>
+阶段的 Lua 代码会如期执行，然后 C<content> 阶段的那些静态文件服
+务会紧接着自动发生作用，直至 L<ngx_static> 模块去文件系统上去找名
+为 F<auth> 的文件。而经常地，C<404> 错误页会抛出，除非运气太好，
+果然在对应路径上存在一个叫做 F<auth> 的文件。所以，一条经验是，当遇到意
+外的 C<404> 错误并且又不涉及静态文件服务时，应当首先检查是否在对应的 C<location>
+配置块中恰当地配置了 C<content> 阶段的模块指令，例如 L<ngx_echo/echo>
+和 L<ngx_proxy/proxy_pass> 之类。
+
