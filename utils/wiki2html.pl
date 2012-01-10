@@ -60,9 +60,27 @@ while (<$in>) {
     if (/^\s+/) {
         $html .= fmt_code($_, $ctx);
 
+    } elsif (/^[*:]\s+(.*)/) {
+        my $txt = $1;
+        if (!$ctx->{list}) {
+            $ctx->{list} = 1;
+
+            $html .= "<ul>\n";
+        }
+
+        $html .= "<li>" . fmt_para($txt, $ctx) . "</li>\n";
+
     } elsif (/^\S/) {
+        if ($ctx->{list}) {
+            undef $ctx->{list};
+            $html .= "</ul>\n";
+        }
+
 
         $html .= fmt_para($_, $ctx);
+
+    } else {
+        die "unexpected line $_";
     }
 }
 
@@ -114,10 +132,21 @@ _EOC_
         if ($s =~ /\G (\s*) \[ (http[^\]\s]+) \s+ ([^\]]+) \] /gcx) {
             my ($indent, $url, $label) = ($1, $2, $3);
 
-            if ($label =~ /(.+)系列$/ && $text2chapter{$1}) {
-                my $chapter = $text2chapter{$1};
+            if (defined $text2chapter{$label}
+                || ($label =~ /(.+)系列$/ && $text2chapter{$1}))
+            {
+                my $key;
+
+                if (defined $text2chapter{$label}) {
+                    $key = $label;
+
+                } else {
+                    $key = $1;
+                }
+
+                my $chapter = $text2chapter{$key};
                 if (!$chapter) {
-                    die "Chapter $1 not found";
+                    die "Chapter $key not found";
                 }
                 my $serial = first_index { $_ eq $chapter } @chapters;
                 if (!$serial) {
@@ -127,6 +156,7 @@ _EOC_
                 $serial = sprintf("%02d", $serial);
                 my $fname = "$serial-${chapter}01.html";
                 $res .= qq{$indent<a href="$fname">$label</a>};
+
             } elsif ($label =~ m/(.*)（([一二三四五六七八九十]+)）/) {
                 my $text = $1;
                 my $cn_num = $2;

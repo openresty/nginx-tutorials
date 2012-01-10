@@ -32,10 +32,19 @@ _EOC_
 
 $res .= "<ul>\n";
 for my $infile (@ARGV) {
-    if ($infile =~ /Foreword/) {
+    if ($infile =~ /Foreword(\d+)/) {
+        my $n = $1;
+        if ($n eq '01') {
         $res .= <<_EOC_;
     <li><a href="$infile">缘起</a></li>
 _EOC_
+        } elsif ($n eq '02') {
+        $res .= <<_EOC_;
+    <li><a href="$infile">Nginx 教程的连载计划</a></li>
+_EOC_
+        } else {
+            die "unknown infile: $infile";
+        }
 
     } elsif ($infile =~ /NginxVariables(\d+)/) {
         my $num = +$1;

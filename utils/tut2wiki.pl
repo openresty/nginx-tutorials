@@ -45,6 +45,11 @@ while (<$in>) {
         next;
     }
 
+    if (/^[*:]\s+/) {
+        $src .= $_;
+        next;
+    }
+
     if ($prev && $prev =~ /^\s+|^\s*$/) {
         $src .= $_;
         next;
@@ -144,9 +149,9 @@ while (<$in>) {
 
     s{\bL<error_log>}{[[CoreModule#error_log|error_log]]}g;
 
-    s{\bL<(Nginx 变量漫谈系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
+    s{\bL<(Nginx 变量漫谈(?:系列)?)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_1_1.html $1]}g;
 
-    s{\bL<(Nginx 配置指令的执行顺序系列)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_2_1.html $1]}g;
+    s{\bL<(Nginx 配置指令的执行顺序(?:系列)?)>}{[http://blog.sina.com.cn/s/articlelist_1834459124_2_1.html $1]}g;
 
     s{\bL<ngx_(\w+)/(\S+)>}{
         my $n = $1;

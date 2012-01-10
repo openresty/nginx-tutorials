@@ -1,0 +1,32 @@
+= Nginx 教程的连载计划 =
+
+下面以教程系列为单位，列举出了已经发表和计划发表的连载教程：
+
+* Nginx 新手起步
+* Nginx 是如何匹配 URI 的
+* L<Nginx 变量漫谈>
+* L<Nginx 配置指令的执行顺序>
+* Nginx 的 if 是邪恶的
+* Nginx 子请求
+* Nginx 内部跳转
+* Nginx 静态文件服务
+* Nginx 的日志服务
+* 基于 Nginx 的应用网关
+* 基于 Nginx 的反向代理
+* Nginx 与 Memcached
+* Nginx 与 Redis
+* Nginx 与 MySQL
+* Nginx 与 PostgreSQL
+* 基于 Nginx 的应用缓存
+* Nginx 中的安全与访问控制
+* 基于 Nginx 的 Web Service
+* Nginx 驱动的 Web 2.0 应用
+* 测试 Nginx 及其应用的性能
+* 借助 Nginx 社区的力量
+
+这些系列的名字和最终我的 Nginx 书中的“章”名可以粗略地对应上，但不会等同
+。同时未发表的系列的名字也可能发生变化，同时实际发表的顺序也会和这里列出的顺序不
+太一样。
+
+上面的列表会随时更新，以保证总是反映了最新的计划和发表情况。
+
