@@ -13,6 +13,8 @@ if ($src !~ m/^\s*<p\b/si) {
 $src =~ s{(<pre.*?)(>.*?<)(/pre>)}{$1.fmt($2).$3}ges;
 $src =~ s{(<code.*?)(>.*?<)(/code>)}{$1.fmt($2).$3}ges;
 $src =~ s!</p><p>!</p><br><p>&nbsp; &nbsp; !gs;
+$src =~ s!<ul>!<br/><ul>!gs;
+$src =~ s!</ul>!<br/></ul>!gs;
 $src =~ s!^\s*<p>!<p>&nbsp; &nbsp; !g;
 $src =~ s!^\s*(\p{Han})!<p>&nbsp; &nbsp; $1!s;
 $src =~ s!href="/!href="http://wiki.nginx.org/!g;
