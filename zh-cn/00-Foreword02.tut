@@ -8,7 +8,6 @@
 * L<Nginx 配置指令的执行顺序>
 * Nginx 的 if 是邪恶的
 * Nginx 子请求
-* Nginx 内部跳转
 * Nginx 静态文件服务
 * Nginx 的日志服务
 * 基于 Nginx 的应用网关
