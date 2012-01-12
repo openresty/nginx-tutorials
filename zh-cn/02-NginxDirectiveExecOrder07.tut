@@ -7,8 +7,8 @@
         root /var/www/;
     }
 
-同时在本机的 F</var/www/> 目录下创建两个文件，一个文件是 F<index.html>，
-内容是一行文本 C<this is my home>；另一个文件是 F<hello.html>，
+同时在本机的 F</var/www/> 目录下创建两个文件，一个文件叫做 F<index.html>，
+内容是一行文本 C<this is my home>；另一个文件叫做 F<hello.html>，
 内容是一行文本 C<hello world>. 同时注意这两个文件的权限设置，确
 保它们都对运行 Nginx worker 进程的系统帐户可读。
 

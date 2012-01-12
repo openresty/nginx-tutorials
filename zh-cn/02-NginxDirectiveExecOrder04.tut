@@ -142,7 +142,7 @@ F<nginx.conf> 配置文件中指定只启用一个 worker 进程：
 脚本：
 
     :bash
-    # ./nginx-access-time.d 10975
+    $ sudo ./nginx-access-time.d 10975
 
 如果一切正常，则会看到这样一行输出：
 
@@ -169,7 +169,7 @@ F<nginx.conf> 配置文件中指定只启用一个 worker 进程：
 本在退出时会向终端打印出最终统计结果。例如我的终端此时是这个样子的：
 
     :bash
-    # ./nginx-access-time.d 10975
+    $ sudo ./nginx-access-time.d 10975
     dtrace: script './nginx-access-time.d' matched 4 probes
     ^C
            19219
