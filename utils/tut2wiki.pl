@@ -184,6 +184,12 @@ while (<$in>) {
 
 close $in;
 
+if ($in_geshi) {
+    chomp $wiki;
+    $wiki .= "</geshi>\n\n";
+    undef $in_geshi;
+}
+
 if ($wiki =~ /\bL<.*?>/) {
     die "Found unresolved link $&\n";
 }

@@ -1,6 +1,7 @@
 = Nginx 配置指令的执行顺序（七） =
 
-来看一个 L<ngx_static> 模块服务磁盘文件的例子：
+来看一个 L<ngx_static> 模块服务磁盘文件的例子。我们使用下面这个配
+置片段：
 
     :nginx
     location / {
@@ -28,11 +29,11 @@
 序”，处理权便自动落到了在 C<content> 阶段“垫底”的那 3 个静态资
 源服务模块。首先运行的 L<ngx_index> 和 L<ngx_autoindex>
 模块先后看到当前请求的 URI，C</index.html> 和 C</hello.html>，
-并不以 C</> 结尾，于是直接被略过，处理权最终转给了最后运行的 L<ngx_static>
+并不以 C</> 结尾，于是直接弃权，将处理权转给了最后运行的 L<ngx_static>
 模块。L<ngx_static> 模块根据 L<ngx_core/root> 指
 令指定的“文档根目录”（document root），分别将请求 URI C</index.html>
 和 C</hello.html> 映射为文件系统路径 F</var/www/index.html>
-和 F</var/www/hello.html>，然后确认这两个文件存在后，将它
+和 F</var/www/hello.html>，在确认这两个文件存在后，将它
 们的内容分别作为响应体输出，并自动设置 C<Content-Type>、C<Content-Length>
 以及 C<Last-Modified> 等响应头。
 
@@ -45,12 +46,12 @@
 这一行信息便是 L<ngx_static> 模块生成的，其含义是“正在输出的静态
 文件的描述符是数字 C<8>”。当然，具体的文件描述符编号会经常发生变化，这里只
 是我机
-器的一次典型运行的结果。值得一提的是，能生成这一行调试信息的还有标准的 L<ngx_gzip_static>
-模块，但它默认是不启用的，后面会专门介绍到这个模块。
+器的一次典型输出。值得一提的是，能生成这一行调试信息的还有标准模块 L<ngx_gzip_static>
+，但它默认是不启用的，后面会专门介绍到这个模块。
 
 注意上面这个例子中使用的 L<ngx_core/root> 配置指令只起到了声明
 “文档根目录”的作用，并不是它开启了 L<ngx_static> 模块。L<ngx_static>
-模块总是处于开启状态，但是否轮得到它执行就要看 C<content> 阶段先于它
+模块总是处于开启状态，但是否轮得到它运行就要看 C<content> 阶段先于它
 运行的那些模块是否“弃权”了。为了进一步确认这一点，来看下面这个空白 C<location>
 的定义：
 
@@ -66,7 +67,8 @@ F</foo/bah/>，
 
 那么“配置前缀
 ”是由什么来决定的呢？默认情况下，就是 Nginx 安装时的根目录（或者说 Nginx
-构造时传递给它的F<./configure> 的 C<--prefix> 选项的
+构造时传递给 F<./configure> 脚本的 C<--prefix> 选项
+的
 路径值）。如果 Nginx 安装到了 C</usr/local/nginx/>
 下，则“配置前缀”便是 C</usr/local/nginx/>，同时默认的“文
 档根目录”便是 C</usr/local/nginx/html/>. 不过，我们
@@ -82,7 +84,8 @@ F</foo/bah/>，
 “配置前缀”不仅会决定默认的“文档根目录”，还决定着 Nginx 配置文件中许多
 相对路径值如何解释为绝对路径，后面我们还会看到许多需要引用到“配置前缀”的例子。
 
-获取当前“文档根目录”路径有一个非常简便的方法，那就是请求一个肯定不存在的文件所
+获取当前“文档根目录”的路径有一个非常简便的方法，那就是请求一个肯定不存在的文件
+所
 对应的资源名，例如：
 
     :nginx
@@ -107,12 +110,12 @@ F</foo/bah/>，
 不难看出，当前的“文档根目录”是 F</home/agentzh/test/html/>.
 
 很多初学者会想当然地把 C<404> 错误理解为某个 C<location> 不
-存在，其实上面这个例子表明，即使 C<location> 成功匹配，相关的模块正
-确运行，也是会返回 C<404> 错误页的。因为决定着 C<404> 错误页的是
-抽象的“资源”是否存在，而非某个 C<location> 是否存在。
+存在，其实上面这个例子表明，即使 C<location> 存在并成功匹配，也是可
+能返回 C<404> 错误页的。因为决定着 C<404> 错误页的是
+抽象的“资源”是否存在，而非某个具体的 C<location> 是否存在。
 
 初学者常犯的一个错误是忘记配置 C<content> 阶段的模块指令，而他们自己
-又并不期望使用 C<content> 阶段缺省运行的静态资源服务，例如：
+其实并不期望使用 C<content> 阶段缺省运行的静态资源服务，例如：
 
     :nginx
     location /auth {
@@ -125,11 +128,16 @@ F</foo/bah/>，
 即 L<ngx_lua/access_by_lua>，并未定义任何 C<content>
 阶段的配置指令。于是当我们请求 C</auth> 接口时，在 C<access>
 阶段的 Lua 代码会如期执行，然后 C<content> 阶段的那些静态文件服
-务会紧接着自动发生作用，直至 L<ngx_static> 模块去文件系统上去找名
+务会紧接着自动发生作用，直至 L<ngx_static> 模块去文件系统上找名
 为 F<auth> 的文件。而经常地，C<404> 错误页会抛出，除非运气太好，
-果然在对应路径上存在一个叫做 F<auth> 的文件。所以，一条经验是，当遇到意
+在对应路径上确实存在一个叫做 F<auth> 的文件。所以，一条经验是，当遇到意
 外的 C<404> 错误并且又不涉及静态文件服务时，应当首先检查是否在对应的 C<location>
 配置块中恰当地配置了 C<content> 阶段的模块指令，例如 L<ngx_lua/content_by_lua>、
 L<ngx_echo/echo> 以及 L<ngx_proxy/proxy_pass>
-之类。
+之类。当然，Nginx 的 F<error.log> 文件一般总是会提供各种意外
+问题的答案，例如对于上面这个例子，我的 F<error.log> 中有下面这条错
+误信息：
+
+    :text
+    [error] 9364#0: *1 open() "/home/agentzh/test/html/auth" failed (2: No such file or directory)
 
