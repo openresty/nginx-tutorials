@@ -94,7 +94,7 @@ F</foo/bah/>，
     <head><title>404 Not Found</title></head>
     <body bgcolor="white">
     <center><h1>404 Not Found</h1></center>
-    <hr><center>nginx/1.0.10 (without pool)</center>
+    <hr><center>nginx</center>
     </body>
     </html>
 
