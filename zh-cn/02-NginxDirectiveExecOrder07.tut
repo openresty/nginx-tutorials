@@ -41,6 +41,7 @@
 ）> 中介绍过的 Nginx “调试日志”，然后再次请求 C</index.html>
 这个接口。此时，在 Nginx 错误日志文件中可以看到类似下面这一行的调试信息：
 
+    :text
     [debug] 3033#0: *1 http static fd: 8
 
 这一行信息便是 L<ngx_static> 模块生成的，其含义是“正在输出的静态
