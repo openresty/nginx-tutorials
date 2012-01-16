@@ -21,7 +21,7 @@ my @nums = qw(
 my @infiles = @ARGV;
 
 my $res = <<_EOC_;
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh" lang="zh">
     <head>
         <title>agentzh 的 Nginx 教程（版本 $ver）</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
@@ -32,15 +32,17 @@ _EOC_
 
 $res .= "<ul>\n";
 for my $infile (@ARGV) {
+    (my $base = $infile) =~ s{.*/|\.html$}{}g;
+
     if ($infile =~ /Foreword(\d+)/) {
         my $n = $1;
         if ($n eq '01') {
         $res .= <<_EOC_;
-    <li><a href="$infile">缘起</a></li>
+    <li><a href="#$base">缘起</a></li>
 _EOC_
         } elsif ($n eq '02') {
         $res .= <<_EOC_;
-    <li><a href="$infile">Nginx 教程的连载计划</a></li>
+    <li><a href="#$base">Nginx 教程的连载计划</a></li>
 _EOC_
         } else {
             die "unknown infile: $infile";
@@ -51,7 +53,7 @@ _EOC_
         my $n = $nums[$num];
         #$infile =~ s{.*/}{}g;
         $res .= <<_EOC_;
-    <li><a href="$infile">Nginx 变量漫谈（$n）</a></li>
+    <li><a href="#$base">Nginx 变量漫谈（$n）</a></li>
 _EOC_
 
     } elsif ($infile =~ /DirectiveExecOrder(\d+)/) {
@@ -59,7 +61,7 @@ _EOC_
         my $n = $nums[$num];
         #$infile =~ s{.*/}{}g;
         $res .= <<_EOC_;
-    <li><a href="$infile">Nginx 配置指令的执行顺序（$n）</a></li>
+    <li><a href="#$base">Nginx 配置指令的执行顺序（$n）</a></li>
 _EOC_
 
     } else {
@@ -67,7 +69,16 @@ _EOC_
     }
 }
 
-$res .= "</ul></body></html>";
+$res .= "</ul>\n";
+
+for my $infile (@ARGV) {
+    open my $in, $infile
+        or die "Cannot open $infile for reading: $!\n";
+    $res .= do { local $/; <$in> };
+    close $in;
+}
+
+$res .= "</body></html>";
 
 if ($outfile) {
     open my $out, ">:encoding(UTF-8)", $outfile

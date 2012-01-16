@@ -32,6 +32,8 @@ my $outfile = $opts{o};
 
 my $infile = shift or usage();
 
+(my $base = $infile) =~ s{.*/|\.wiki$}{}g;
+
 my ($cur_chapter, $cur_serial, $cur_order);
 if ($infile =~ /\b(\d+)-(\w+?)(?:\d+)?\.wiki$/) {
     $cur_serial = $1;
@@ -86,7 +88,7 @@ while (<$in>) {
 
 close $in;
 
-$html .= "    </body>\n</html>\n";
+#$html .= "    </body>\n</html>\n";
 
 if ($outfile) {
     open my $out, ">:encoding(UTF-8)", $outfile
@@ -104,13 +106,7 @@ sub fmt_para {
     if ($s =~ /^= (.*?) =$/) {
         my $title = $1;
         return <<"_EOC_";
-<html>
-    <head>
-        <title>$title</title>
-        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    </head>
-    <body>
-    <h3>$title</h3>
+    <h3 id="$base">$title</h3>
 _EOC_
     }
 
@@ -154,8 +150,8 @@ _EOC_
                 }
 
                 $serial = sprintf("%02d", $serial);
-                my $fname = "$serial-${chapter}01.html";
-                $res .= qq{$indent<a href="$fname">$label</a>};
+                my $base = "$serial-${chapter}01";
+                $res .= qq{$indent<a href="#$base">$label</a>};
 
             } elsif ($label =~ m/(.*)（([一二三四五六七八九十]+)）/) {
                 my $text = $1;
@@ -181,7 +177,7 @@ _EOC_
                     $serial = sprintf("%02d", $serial);
                 }
 
-                $res .= qq{$indent<a href="$serial-$chapter$order.html">$label</a>};
+                $res .= qq{$indent<a href="#$serial-$chapter$order">$label</a>};
 
             } else {
                 #warn "matched abs link $&\n";

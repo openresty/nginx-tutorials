@@ -8,8 +8,6 @@ zhcn_htmlfiles=$(patsubst %.tut,html/%.html,$(zhcn_tutfiles))
 
 .PRECIOUS: $(zhcn_wikifiles) $(zhcn_htmlfiles)
 
-#test: ; echo $(htmlfiles)
-
 all: mobi epub pdf
 	
 mobi: $(name).mobi
@@ -56,4 +54,6 @@ wiki/%.wiki: %.tut
 
 clean:
 	rm -rf html/ wiki/ index*.html *.mobi *.epub *.pdf
+
+#test: ; echo $(zhcn_htmlfiles)
 
