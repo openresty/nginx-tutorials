@@ -20,7 +20,13 @@ while (<$in>) {
     }
 
     my $orig = $_;
-    s/.{39}.*?(?:[ \t”“，：。！？]|\p{Han})/$&\n/gso;
+
+    if (/\p{Han}/) {
+        s/.{39}.*?(?:[ \t”“，：。！？]|\p{Han})/$&\n/gso;
+    } else {
+        s/.{70}.*?[ \t,'""!?:;.”“，：。！？]/$&\n/gso;
+    }
+
     s/\s*\n\s*/\n/gms;
     $changes++ if $orig ne $_;
 
