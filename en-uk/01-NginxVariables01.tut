@@ -1,7 +1,7 @@
-= Nginx variables (01) =
+= Nginx Variables (01) =
 
-Nginx's configuration is itself a mini language. Many Nginx configuration are practically programs.
-The language might not be Turing-Complete, as far as i can see, its design is heavily influenced by
+Nginx's configuration is itself a mini language. Many Nginx configurations are practically programs.
+The language might not be Turing-Complete, as far as I can see, its design is heavily influenced by
 Perl and Bourne Shell. This is a characteristic feature of Nginx, comparing to the other web servers 
 such as Apache or Lighttpd. Being a language, "Variable" declaration becomes a common concept (However,
 exception does exist in Functional Languages such as Haskell)
