@@ -1,0 +1,183 @@
+= Nginx variables (01) =
+
+Nginx's configuration is itself a mini language. Many Nginx configuration are practically programs.
+The language might not be Turing-Complete, as far as i can see, its design is heavily influenced by
+Perl and Bourne Shell. This is a characteristic feature of Nginx, comparing to the other web servers 
+such as Apache or Lighttpd. Being a language, "Variable" declaration becomes a common concept (However,
+exception does exist in Functional Languages such as Haskell)
+
+For those who know well imperative languages like Perl, Bourne Shell, C/C++, variable is nothing but
+a container holding various values, and the "value" can be numbers like C<3.14> or strings like
+C<hello world>. Values can be as complicated as references to arrays or hash tables too. However in the
+Nginx configuration, variable contains one and only one type of value: strings.
+
+For example, our F<nginx.conf> has following variable declaration:
+
+    :nginx
+    set $a "hello world";
+
+We have used built-in L<ngx_rewrite> module's L<ngx_rewrite/set> command to declare and initialize
+the variable C<$a>. Specifically, it is assigned with strings C<hello world>. Like Perl and PHP, the
+Nginx syntax requires prefix C<$> to declare and devalue variables.
+
+Many C<Java> and C<C#> programmers dislike the ugly C<$> variable prefix, yet the approach does have
+a few advantages, notably, variables can be embedded directly in a string to construct another string
+
+    :nginx
+    set $a hello;
+    set $b "$a, $a";
+
+It is using Nginx variable C<$a>, to construct variable C<$b>. Now C<$a> is C<hello>, and C<$b> is 
+C<hello, hello>. The technique is called "variable interpolation" in Perl. It effectively executes
+the string concatenation.
+
+Let's have a look at another example:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set $foo hello;
+            echo "foo: $foo";
+        }
+    }
+
+The example omits the outter C<http> directive and C<events> directive in F<nginx.conf>. With
+the HTTP client utility C<curl>, we can issue a HTTP request to C</test> from command line and
+obtain following result:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    foo: hello
+
+Here we use 3rd party module L<ngx_echo> and its command L<ngx_echo/echo> to print the value
+of variable C<$foo> as HTTP response.
+
+We can assert that L<ngx_echo/echo> supports "vairable interpolation", yet we must not take it
+for granted, since not all the variable commands supports "variable interpolation" and it is 
+in fact up to the module's implemenation.
+
+Is there any way to escape C<$> so that it is no more than a typical dollar sign by using 
+L<ngx_echo/echo> ? The answer is negative (the answer still holds in the latest Nginx stable
+release C<1.0.10>. Luckily this can be done by other module commands, which designate C<$> value
+as a Nginx variable, then the variable can be used in L<ngx_echo/echo>, example:
+
+    :nginx
+    geo $dollar {
+        default "$";
+    }
+
+    server {
+        listen 8080;
+
+        location /test {
+            echo "This is a dollar sign: $dollar";
+        }
+    }
+
+testing result is following:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    This is a dollar sign: $
+
+The built-in module L<ngx_geo> and its command L<ngx_geo/geo> are used to initialize
+variable C<$dollar> with string C<"$">, thereafter variable C<$dollar> can be used
+for circumstances asking for a dollar sign. Actually, the typical scenario L<ngx_geo>
+is applied for, is to assign Nginx variable by taking into account the request client
+IP addresses. For above specific example, it is used to initialize C<$dollar> varible 
+with the dollar sign string unconditionally.
+
+Attention, "variable interpolation" has a special case, where the variable name itself
+cannot be delimited from the rest of the string (such as it is right in front of letter,
+digit or underscore) Hence a special syntax is needed to handle the case, as following:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set $first "hello ";
+            echo "${first}world";
+        }
+    }
+
+In the example, variable C<$first> is concatenated with C<world>. If it is written
+directly as C<"$firstworld">, Nginx's variable interpolation tries to devalue variable
+C<$firstworld> instead of C<$first>. To fix this problem, curly bracket can be used
+together with C<$>, such as C<${first}>. Above example has following result:
+
+    :bash
+    $ curl 'http://localhost:8080/test
+    hello world
+
+Command L<ngx_rewrite/set> (and Command L<ngx_geo/geo>) not only initialize a variable,
+effectively it firstly declares the variable. Which means, if the variable is not declared yet,
+it is declared automatically (then initialized). In the example, if variable C<$a> is not declared,
+C<set> declares the variable at first hand. If variables are not declared, Nginx cannot devalue
+them, another example:
+
+    :nginx
+    ? server {
+    ?     listen 8080;
+    ?
+    ?     location /bad {
+    ?         echo $foo;
+    ?     }
+    ? }
+
+Nginx aborts loading configuration:
+
+    [emerg] unknown "foo" variable
+
+Yes, the server cannot even be started!
+
+More importantly, Nginx variable declaration and initialization happens at different phases in the timeline.
+Variable declaration only occurs when Nginx loads its configuration, in other words, when Nginx is started.
+On the other hand, variable initialization occurs when actual request is being handled. Consequently, server
+fails bootstrap if variable is not declared, further more, new Nginx variables cannot be declared dynamically in
+the run time.
+
+As soon as a variable is declared in Nginx, its scope is the entire configuration, regardless of the location 
+it is referenced, even for different virtual server directives. Here is an example:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /foo {
+            echo "foo = [$foo]";
+        }
+
+        location /bar {
+            set $foo 32;
+            echo "foo = [$foo]";
+        }
+    }
+
+Variable C<$foo> is declared by command C<set> within C<location /bar>, as variable
+visibility is the entire configuration. It can be referenced in C<location /foo> without
+causing any error, following are the location outcomes repectively:
+
+    :bash
+    $ curl 'http://localhost:8080/foo'
+    foo = []
+
+    $ curl 'http://localhost:8080/bar'
+    foo = [32]
+
+    $ curl 'http://localhost:8080/foo'
+    foo = []
+
+As we can tell, command C<set> is executed within C<location /bar>, so the variable is only initialized when C</bar>
+is requested. If C</foo> is requested directly, variable C<$foo> has an empty value. Default value is an empty string
+if Nginx variable is not initialized.
+
+The example carries another important feature, i.e. although variable scope is the entire configuration, every request
+has its own copies of the declared variables. In the example, variable C<$foo> is initialized with value C<32> when C</bar>
+is requested, but it remains empty in the subsequent request to C</foo> since every request has their own copy of variables
+
+This is a common pitfall many Nginx newbie stumbles, which is to think Nginx variable as "globle variable" or configuration
+settings that are shared for the entire server life time. In fact, variables cannot last in between different requests.
+
