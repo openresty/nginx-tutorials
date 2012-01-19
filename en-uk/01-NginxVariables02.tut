@@ -1,0 +1,229 @@
+= Nginx Variables (02) =
+
+One common misunderstanding with Nginx variable, is its life cycle be bounded
+with the C<Location> directive. Let's challenge it by checking another
+example
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /foo {
+            set $a hello;
+            echo_exec /bar;
+        }
+
+        location /bar {
+            echo "a = [$a]";
+        }
+    }
+
+We use the 3rd party module L<ngx_echo> and its command L<ngx_echo/echo_exec>
+to execute C<location /bar> from within C<location /foo>. The mechanism
+is like
+"jumping" from one C<location> to another C<location> in Nginx internals
+when
+handling a specific request. This is different with HTTP C<301> and C<302>
+redirect, which conducts the external jump by collaborating with HTTP client.
+External redirect can be asserted when requesting URL is updated. Whereas
+Nginx
+internal jumps has no impact on the client side, and just like the C<exec>
+command
+found in C<Bourne Shell> (or C<Bash>), the execution path has no returns.
+Another
+close schema is the C<goto> statement in C<C>.
+
+Being an internal jump in between the C<location> directives for Nginx
+processing,
+the request remains to be the original one, its copy of declared variables
+has not changed neither.
+Back to our example, if C</foo> is requested, the processing is like following:
+variable C<$a>
+is declared and initialized with string value C<hello> by command L<ngx_rewrite/set>
+within
+C<location> directive, then internal jump occurs by L<ngx_echo/echo_exec>
+and processing continues
+from C<location /bar>. Since C<$a> in the latter case is the same C<$a>
+variable initialized earlier
+we can expect the outcome is C<hello> when variable C<$a> is printed. Let'
+s prove ourselves with
+request:
+
+    :bash
+    $ curl localhost:8080/foo
+    a = [hello]
+
+If however, the C</bar> is requested directly, C<$a> still has an empty
+value because
+it is initialized in C<location /foo> only.
+
+The example tells, when a request is being handled, even across multiple
+C<location> directives,
+its copy of Nginx variables has not been reconstructed. The concept of
+"internal jumps" is also
+worth of noting, that the built-in L<ngx_rewrite> module and its command
+L<ngx_rewrite/rewrite>
+can execute exactly the same kind of internal jump. To rewrite our example:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /foo {
+            set $a hello;
+            rewrite ^ /bar;
+        }
+
+        location /bar {
+            echo "a = [$a]";
+        }
+    }
+
+
+Net effect has no differences with L<ngx_echo/echo_exec>. L<ngx_rewrite/rewrite>
+will
+be addressed more specifically later, for its usage in C<301> and C<302>
+redirects.
+
+Again, we have asserted that Nginx variable's life time is bounded with
+the request being
+handled and it has nothing to do with C<location> directives.
+
+So far, the variables we have discussed are implicitly created by L<ngx_rewrite/set>.
+They
+are called "user defined variables" or simply "user variables". Besides
+variables defined
+by user, Nginx core and various Nginx modules can provide "pre-defined
+variables" or "builtin
+variables).
+
+Builtin variables are mostly used to provide request or response information.
+For instance
+builtin variable L<ngx_core/$uri>, declared by L<ngx_http_core> module,
+gives the URI of
+the request being handled (url-decoded and exclude request parameters).
+Another builtin
+variable L<ngx_core/$request_uri> gives the original request URI (url-encoded
+and include
+request parameter). Another example:
+
+    :nginx
+    location /test {
+        echo "uri = $uri";
+        echo "request_uri = $request_uri";
+    }
+
+for the sake of clearness, C<server> directive is omitted. As usual the
+server is listening
+on C<8080> port, the example prints Nginx builtin variables L<ngx_core/$uri>
+and L<ngx_core/$request_uri>
+in the response. Now let's send a request to C<test>:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    uri = /test
+    request_uri = /test
+
+    $ curl 'http://localhost:8080/test?a=3&b=4'
+    uri = /test
+    request_uri = /test?a=3&b=4
+
+    $ curl 'http://localhost:8080/test/hello%20world?a=3&b=4'
+    uri = /test/hello world
+    request_uri = /test/hello%20world?a=3&b=4
+
+There is another category of builtin variables, these variable names
+has the C<arg_> prefix, such as C<$arg_name>, its value is the url-encoded
+URI parameter C<name>, here is a finer example:
+
+    :nginx
+    location /test {
+        echo "name: $arg_name";
+        echo "class: $arg_class";
+    }
+
+We test C</test> with a few scenarios, each with different URL parameter
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    name: 
+    class: 
+
+    $ curl 'http://localhost:8080/test?name=Tom&class=3'
+    name: Tom
+    class: 3
+
+    $ curl 'http://localhost:8080/test?name=hello%20world&class=9'
+    name: hello%20world
+    class: 9
+
+C<$arg_name> is case-insensitive, it matches to C<name> URL parameter
+and it matches the C<NAME> or C<Name> as well:
+
+    $ curl 'http://localhost:8080/test?NAME=Marry'
+    name: Marry
+    class: 
+
+    $ curl 'http://localhost:8080/test?Name=Jimmy'
+    name: Jimmy
+    class: 
+
+Nginx lower-cases all URL parameter keys before it declares those builtin
+variables.
+
+A 3rd party module L<ngx_set_misc> and its command L<ngx_set_misc/set_unescape_uri>
+can execute URL decoding for string sequences like C<%XX>
+
+    :nginx
+    location /test {
+        set_unescape_uri $name $arg_name;
+        set_unescape_uri $class $arg_class;
+
+        echo "name: $name";
+        echo "class: $class";
+    }
+
+Again:
+
+    :bash
+    $ curl 'http://localhost:8080/test?name=hello%20world&class=9'
+    name: hello world
+    class: 9
+
+white space is decoded !
+
+As we can see, command L<ngx_set_misc/set_unescape_uri> is like command
+L<ngx_rewrite/set>
+has the capability of declare and initialize Nginx variables. Later on
+we will discuss more of
+the L<ngx_rewrite/set> module.
+
+Variables like L<$arg_XXX>, are declared specifically within Nginx core.
+3rd party module
+has no equivalent capabilities. There are simular category of variables,
+C<$cookie_XXX> to retrieve
+cookie, L<$http_XXX> the headers and L<$sent_http_XXX> response headers.
+Please reference
+official documentation of L<ngx_http_core> module for details.
+
+Attention, many builtin variables are read-only. Such as the one we have
+lately introduced
+L<ngx_core/$uri> and L<ngx_core/$request_uri>. One must avoid to assign
+values to read-only variables,
+unless they enjoy surprices, for example:
+
+    :nginx
+    ? location /bad {
+    ?     set $uri /blah;
+    ?     echo $uri;
+    ? }
+
+This problematic configuration dumps fatal error when Nginx is started
+and leaves absolute no clue:
+
+    [emerg] the duplicate "uri" variable in ...
+
+Attempt to write other read-only variables such as L<$arg_XXX> variables,
+can blow the Nginx
+process right away in a few particular releases.
+
