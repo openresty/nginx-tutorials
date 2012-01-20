@@ -1,0 +1,155 @@
+= Nginx Variables (03) =
+
+Some builtin variables are writable. L<ngx_core/$args> is one of them.
+The variable gives the URL parameters (the part after the question mark)
+when the variable is written, the parameters are virtually modified. Let's
+check following example:
+
+    :nginx
+    location /test {
+        set $orig_args $args;
+        set $args "a=3&b=4";
+
+        echo "original args: $orig_args";
+        echo "args: $args";
+    }
+
+The original URL parameters are saved in C<$origin_args> variable, then
+we change the URL parameters by modifying L<ngx_core/$args>, finally
+both C<$orig_args> and L<ngx_core/$args> are printed by command L<ngx_echo/echo>.
+Now we can launch request to C</test>:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    original args: 
+    args: a=3&b=4
+
+    $ curl 'http://localhost:8080/test?a=0&b=1&c=2'
+    original args: a=0&b=1&c=2
+    args: a=3&b=4
+
+In the first run, no URL parameters are sent in the request, C<$orig_args>
+has an empty value. Yet in both runs, URL parameters are rewritten as C<a=3&b=4> 
+no matter how it is requested.
+
+If we drill deeper, variable L<ngx_core/$args> like L<$arg_XXX>, is no longer
+a simple value container. In fact, whenever L<ngx_core/$args> is devalued, Nginx
+core runs a chunck of code to calculate it from where the URL parameters are
+stored, when the variable is written, another chunck of code get executed to overwrite
+the same storage.This is how it is actually implemented. Now let's run following test
+
+    :nginx
+    location /test {
+        set $orig_a $arg_a;
+        set $args "a=5";
+        echo "original a: $orig_a";
+        echo "a: $arg_a";
+    }
+
+C<$orig_a> saves a copy of the original C<$arg_a>, which is the value of URL parameter C<a>.
+then L<ngx_core/$args> is rewritten as C<a=5>, finally both C<$orig_a> and C<$arg_a> are printed
+by command L<ngx_echo/echo>. Since overwritting variable L<ngx_core/$args> effectively modifies
+the URL parameters, builtin variable L<$arg_XXX> should have been modified as well, this can be
+verified as following:
+
+    :bash
+    $ curl 'http://localhost:8080/test?a=3'
+    original a: 3
+    a: 5
+
+Clearly, URL parameter was C<a=3>, builtin variable C<$arg_a> was initialized with value C<3>,
+right after L<ngx_core/$args> gets modified as C<a=5>, C<$arg_a> now has the value C<5>.
+
+Modify C<$args> has another side effect for builtin HTTP proxy module L<ngx_proxy>:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set $args "foo=1&bar=2";
+            proxy_pass http://127.0.0.1:8081/args;
+        }
+    }
+
+    server {
+        listen 8081;
+
+        location /args {
+            echo "args: $args";
+        }
+    }
+
+Two virtual servers are configured within C<http> directive, one is listening
+on port 8080, it modifies the L<ngx_core/$args> variable, so that the request
+URL parameter becomes C<foo=1&bar=2> as long as C</test> is requested. Thereafter
+L<ngx_proxy> and its command L<ngx_proxy/proxy_pass> are used to proxy the request
+to the other virtual server, which is listening on port 8081 for location C</args>.
+By default when proxy is happening, URL parameters of the original request will be
+proxyed as well.
+
+When the latter virtual server has the request on port 8081, it uses command 
+L<ngx_echo/echo> to print the current URL parameters, so that we can check what
+was actually proxied from C</test>, let's roll it out:
+
+    :bash
+    $ curl 'http://localhost:8080/test?blah=7'
+    args: foo=1&bar=2
+
+You might have noticed, the original request has URL parameter C<blah=7>, but it
+gets overwritten within C<location /test> as C<foo=1&bar=2>, so when the request
+is proxied to the latter virtual server by command L<ngx_proxy/proxy_pass>, the
+original URL parameter is gone and new value of L<ngx_core/$args> is printed.
+
+The hook under the scene, when Nginx variable is retrieved, is called "get handler"
+while the one in charge when Nginx variable is written, is called "set handler", since
+different Nginx module has the caliber to provide those handlers for their variables,
+variables become really powerful.
+
+This technique is not uncommon in programming. One example is the class designer,who enjoys 
+Object-Oriented programming, seldom exposes their class member variables, instead
+two acessor methods are provided respectively for read and write. A simple C++ case:
+
+    :cpp
+    #include <string>
+    using namespace std;
+
+    class Person {
+    public:
+        const string get_name() {
+            return m_name;
+        }
+
+        void set_name(const string name) {
+            m_name = name;
+        }
+
+    private:
+        string m_name;
+    };
+
+Two public methods C<get_name> and C<set_name> are provided, they are the
+acessor methods for the private member variable C<m_name>
+
+The design has great flexibility, as any logic can be inserted into "acessor method"
+if necessary. Such as update other member variables who have dependences, or modify
+directly the corresponding table back in a database.In the latter case, "acessor method"
+might not have a member variable at all, or probably its sole purpose is to cache the
+database returns.
+
+Like the "acessor methods" in Object-Oriented programming, Nginx variables are bounded
+with "set/get handlers". When Nginx variable declares its variables, it has the option
+to allocate a value container or hook it with "set/get handlers"
+
+Not every Nginx variable has its value container. For those who have, they are
+called "indexed" in Nginx core. Otherwise they are called "non-indexed".
+
+As we learnt from L<vartut/ (02)>, the variable category like L<$arg_XXX> are non-indexed,
+the read and write of those variables are executed through "set/get handlers", i.e. by calculating
+the URL parameters in run time. Newbies might imagine those URL parameters are parsed once for all,
+and the corresponding L<$arg_XXX> variables are accordingly declared and initialized. Well this is
+false. Nginx does not parse URL parameter sequence beforehand, instead it calculates it when
+a L<$arg_XXX> needs to be devalued, through the "set/get handler". The same approach applies
+to L<$cookie_XXX> variables too, its "set/get handler" calculates from the C<Cookie> headers in
+the run time.
+

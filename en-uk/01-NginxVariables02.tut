@@ -25,7 +25,7 @@ is like
 when
 handling a specific request. This is different with HTTP C<301> and C<302>
 redirect, which conducts the external jump by collaborating with HTTP client.
-External redirect can be asserted when requesting URL is updated. Whereas
+External redirect can be asserted when requesting URL is modified. Whereas
 Nginx
 internal jumps has no impact on the client side, and just like the C<exec>
 command
@@ -210,7 +210,7 @@ Attention, many builtin variables are read-only. Such as the one we have
 lately introduced
 L<ngx_core/$uri> and L<ngx_core/$request_uri>. One must avoid to assign
 values to read-only variables,
-unless they enjoy surprices, for example:
+unless they enjoy surprises, for example:
 
     :nginx
     ? location /bad {
