@@ -1,0 +1,183 @@
+= Nginx Variables (05) =
+
+In L<vartut/ (02)> we learnt that variable life cycle is bounded with
+the request, but i own you a formal definition of "request". Without further
+explaining, you might have assumed that "request" refers to the HTTP request
+initiated by the client. But, there are actually two types of "request"
+in Nginx
+world. One is called "main request", the other "subrequest". Now let's
+wire them in.
+
+The "main request" is the request initiated by HTTP client from outside
+Nginx.
+All requests we've been discussed are "main request", including the internal
+"jump"
+introduced in L<vartut/ 02), which uses command L<ngx_echo/echo_exec> and
+L<ngx_rewrite/rewrite>
+
+Whereas the "subrequest" is a type of cascading request issued by Nginx
+from within
+its internals. "Subrequest" is encapsulated just like HTTP request, but
+it has absolutely
+nothing to do with HTTP protocol and networking. Subrequest is a useful
+abstraction in
+Nginx design, to ease the decomposition of main request into a few "internal
+requests" with
+finer granularity. Subrequest can be issued to multiple C<location> interfaces
+sequentially
+or in parallel, and handles the main request by collaborating their respective
+outcomes.
+Certainly, subrequest can be further decomposed into other subrequests,
+subrequest can even
+form a recursive pattern by cascade the request to itself. When a request
+issues its subrequests,
+it is called "parent request" in Nginx terminology. As a footnote, for
+those who had wet themselves
+with Apache, subrequest is defined equivalently and not totally a stranger.
+
+Let's check a subrequest example:
+
+    :nginx
+    location /main {
+        echo_location /foo;
+        echo_location /bar;
+    }
+
+    location /foo {
+        echo foo;
+    }
+
+    location /bar {
+        echo bar;
+    }
+
+Now in C<location /main>, two subrequests are sent to C</foo> and C</bar>
+via 3rd party module L<ngx_echo> and its command L<ngx_echo/echo_location>.
+The subrequests are of type HTTP C<GET>. When they are sent by L<ngx_echo/echo_location>
+the requests are executed sequentially, in the order of their writing,
+which
+means, C</bar> is sub-requested only when C</foo> has finished its part.
+And
+outcome from the subrequests will be concatenated as the final response
+of C</main>
+
+    :bash
+    $ curl 'http://localhost:8080/main'
+    foo
+    bar
+
+As we can tell, subrequest is issued within a virtual server, i.e. subrequest
+handling is implemented as a few C API calls, without any networking nor
+UNIX
+socket, therefore subrequest execution is extremely fast.
+
+Back to the very initial subject about Nginx variable life cycle, we can
+still
+safely conclude that it is bounded with current request and every request
+has
+an isolated copy of variables. However, the request can be "main request"
+as
+well as "subrequest". Even if "parent request" and "subrequest" share the
+same
+variable name, they are virtually different variables. We can verify it
+with
+following test:
+
+    :nginx
+    location /main {
+        set $var main;
+
+        echo_location /foo;
+        echo_location /bar;
+
+        echo "main: $var";
+    }
+
+    location /foo {
+        set $var foo;
+        echo "foo: $var";
+    }
+
+    location /bar {
+        set $var bar;
+        echo "bar: $var";
+    }
+
+In this test, the same variable C<$var> is declared in C<location /main>,
+C<location /foo> and C<location /bar> but is initialized with different
+values.
+Further more, we print the value of variable C<$var> within C</main> after
+two subrequests are handled. Then we issue a request to C</main>:
+
+    :bash
+    $ curl 'http://localhost:8080/main'
+    foo: foo
+    bar: bar
+    main: main
+
+Apparently, when the subrequests are handled in C</foo> and C</bar>,
+they both have no impact on the value of C<$var> and the main requesting
+handling
+in C</main>, again subrequests themselves have no impact on each other.
+So we
+have asserted that "main request" and every other subrequest each has its
+own
+copies of C<$var>.
+
+Unfortunately, there exists exceptions. Some Nginx module might issue
+subrequest which references the same copy of variables of their parent
+request. The
+3rd party module L<ngx_auth_request> is one of them:
+
+    :nginx
+    location /main {
+        set $var main;
+        auth_request /sub;
+        echo "main: $var";
+    }
+
+    location /sub {
+        set $var sub;
+        echo "sub: $var";
+    }
+
+Variable C<$var> is declared and initialized with value C<main> in C<location
+/main>
+then a subrequest is issued via module L<ngx_auth_request> and its command
+L<ngx_auth_request/auth_request>, finally we print variable C<$var> using
+command L<ngx_echo/echo>.
+Now we reset variable C<$var> as C<sub> in C<location /sub> and check what
+our test says:
+
+    :bash
+    $ curl 'http://localhost:8080/main'
+    main: sub
+
+It says, C<$var> has become C<sub> back in its main request to C<location
+/main>, which means
+the subrequest issued by L<ngx_auth_request> module shares exactly the
+same copy of variables
+with its parent request.
+
+Wait a minute, you might exclaim, why the print within subrequest to C<location
+/sub> is missing?
+good gocha and the answer is simple, command L<ngx_auth_request/auth_request>
+ignores the responses
+from its subrequest, instead all it cares is the status code from the subrequest
+(subrequest is
+ecapsulated as HTTP request). When status code is C<2XX>, the handling
+of main request continues,
+otherwise the handling gets aborted and error is returned. In our example,
+subrequest only executes
+a print by L<ngx_echo/echo>, which implicitly returns status code C<200>.
+
+Surely it's always easier to share variables in between parent request
+and subrequest, like module
+L<ngx_auth_request> does. Do expect the side effect and haunted bugs it
+consequences when configuration
+scales and becomes complicated. It's too hard to trace a variable when
+its value get overwritten in
+some subrequests. To keep our sanity, modules like L<ngx_echo>, L<ngx_lua>
+and L<ngx_srcache> and many
+other 3rd party module chooses not to share variables in between requests.
+

@@ -71,11 +71,11 @@ Here we use 3rd party module L<ngx_echo> and its command L<ngx_echo/echo>
 to print the value
 of variable C<$foo> as HTTP response.
 
-We can assert that L<ngx_echo/echo> supports "vairable interpolation",
+We can assert that L<ngx_echo/echo> supports "variable interpolation",
 yet we must not take it
 for granted, since not all the variable commands supports "variable interpolation"
 and it is
-in fact up to the module's implemenation.
+in fact up to the module's implementation.
 
 Is there any way to escape C<$> so that it is no more than a typical dollar
 sign by using
@@ -114,7 +114,7 @@ L<ngx_geo>
 is applied for, is to assign Nginx variable by taking into account the
 request client
 IP addresses. For above specific example, it is used to initialize C<$dollar>
-varible
+variable
 with the dollar sign string unconditionally.
 
 Attention, "variable interpolation" has a special case, where the variable
@@ -204,7 +204,7 @@ Variable C<$foo> is declared by command C<set> within C<location /bar>,
 as variable
 visibility is the entire configuration. It can be referenced in C<location
 /foo> without
-causing any error, following are the location outcomes repectively:
+causing any error, following are the location outcomes respectively:
 
     :bash
     $ curl 'http://localhost:8080/foo'
@@ -230,7 +230,7 @@ is requested, but it remains empty in the subsequent request to C</foo>
 since every request has their own copy of variables
 
 This is a common pitfall many Nginx newbie stumbles, which is to think
-Nginx variable as "globle variable" or configuration
+Nginx variable as "global variable" or configuration
 settings that are shared for the entire server life time. In fact, variables
 cannot last in between different requests.
 

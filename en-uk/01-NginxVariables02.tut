@@ -200,7 +200,7 @@ the L<ngx_rewrite/set> module.
 
 Variables like L<$arg_XXX>, are declared specifically within Nginx core.
 3rd party module
-has no equivalent capabilities. There are simular category of variables,
+has no equivalent capabilities. There are similar category of variables,
 C<$cookie_XXX> to retrieve
 cookie, L<$http_XXX> the headers and L<$sent_http_XXX> response headers.
 Please reference

@@ -37,9 +37,9 @@ If we drill deeper, variable L<ngx_core/$args> like L<$arg_XXX>, is no
 longer
 a simple value container. In fact, whenever L<ngx_core/$args> is devalued,
 Nginx
-core runs a chunck of code to calculate it from where the URL parameters
+core runs a chunk of code to calculate it from where the URL parameters
 are
-stored, when the variable is written, another chunck of code get executed
+stored, when the variable is written, another chunk of code get executed
 to overwrite
 the same storage.This is how it is actually implemented. Now let's run
 following test
@@ -56,7 +56,7 @@ C<$orig_a> saves a copy of the original C<$arg_a>, which is the value of
 URL parameter C<a>.
 then L<ngx_core/$args> is rewritten as C<a=5>, finally both C<$orig_a>
 and C<$arg_a> are printed
-by command L<ngx_echo/echo>. Since overwritting variable L<ngx_core/$args>
+by command L<ngx_echo/echo>. Since overwriting variable L<ngx_core/$args>
 effectively modifies
 the URL parameters, builtin variable L<$arg_XXX> should have been modified
 as well, this can be
@@ -107,7 +107,7 @@ proxyed as well.
 When the latter virtual server has the request on port 8081, it uses command
 L<ngx_echo/echo> to print the current URL parameters, so that we can check
 what
-was actually proxied from C</test>, let's roll it out:
+was actually proxyed from C</test>, let's roll it out:
 
     :bash
     $ curl 'http://localhost:8080/test?blah=7'
@@ -117,7 +117,7 @@ You might have noticed, the original request has URL parameter C<blah=7>,
 but it
 gets overwritten within C<location /test> as C<foo=1&bar=2>, so when the
 request
-is proxied to the latter virtual server by command L<ngx_proxy/proxy_pass>,
+is proxyed to the latter virtual server by command L<ngx_proxy/proxy_pass>,
 the
 original URL parameter is gone and new value of L<ngx_core/$args> is printed.
 

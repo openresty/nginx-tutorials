@@ -83,7 +83,7 @@ use value container as cache for the outcome of its "get handler". Apparently,
 L<ngx_map>
 caches the outcome to avoid further expensive calculation, so that Nginx
 can use the cached
-result for that variable in the subsequent handlings for free.
+result for that variable in the subsequent handling for free.
 
 To verify this, we request again with an URL parameter C<debug>:
 
@@ -128,7 +128,7 @@ People who have just learnt Nginx, would argue this global configuration
 of
 mappings by L<ngx_map/map>, is likely to be inefficient since request to
 every C<location>
-will cause the mapping be repeatedly caculated. Have no worry and let us
+will cause the mapping be repeatedly calculated. Have no worry and let us
 review,
 command L<ngx_map/map> actually defines a "get handler" for a user variable,
 the
@@ -151,7 +151,7 @@ L<ngx_rewrite/set>:
     set $b "$a,$a";
 
 When variable C<$b> is declared by command L<ngx_rewrite/set>, the value
-of C<$b> is proactively computed right away, the calculation won't be delayed
+of C<$b> is computed right away, the calculation won't be delayed
 till
 variable C<$b> needs to be devalued.
 
