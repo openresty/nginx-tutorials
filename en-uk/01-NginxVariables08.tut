@@ -1,0 +1,174 @@
+= Nginx Variables (08) =
+
+In L<vartut/ (02)> we mentioned that another category of builtin variables
+L<$cookie_XXX> are like L<$arg_XXX>. Similarly when there exist no cookie
+named C<XXX>, its corresponding Nginx variable L<$cookie_XXX> has non-value
+"not found".
+
+    :nginx
+    location /test {
+        content_by_lua '
+            if ngx.var.cookie_user == nil then
+                ngx.say("cookie user: missing")
+            else
+                ngx.say("cookie user: [", ngx.var.cookie_user, "]")
+            end
+        ';
+    }
+
+The C<curl> utility offers the C<--cookie name=value> option, which designates
+C<name=value> as a cookie of its request (by adding the C<Cookie> header).
+Let's test a few cases containing cookies.
+
+    $ curl --cookie user=agentzh 'http://localhost:8080/test'
+    cookie user: [agentzh]
+
+    $ curl --cookie user= 'http://localhost:8080/test'
+    cookie user: []
+
+    $ curl 'http://localhost:8080/test'
+    cookie user: missing
+
+As expected, when cookie C<user> does not exist, Lua variable C<ngx.var.
+cookie_user>
+is C<nil>. So we have successfully distinguished the case with empty string
+and the
+case with non-value.
+
+A nice add-on with module L<ngx_lua> is when lua references an undeclared
+variable
+of Nginx, the variable is C<nil> and Nginx will not aborts it loading as
+before.
+
+    :nginx
+    location /test {
+        content_by_lua '
+            ngx.say("$blah = ", ngx.var.blah)
+        ';
+    }
+
+User variable C<$blah> is never declared in the Nginx configuration F<nginx.
+conf>, but
+it is referenced as C<ngx.var.blah> in Lua code. Nginx can be started still,
+because
+when Nginx loads its configuration, Lua code is only compiled but not executed,
+So Nginx
+has no idea a variable C<$blah> is referenced. When lua command is executed
+in run time
+by command L<ngx_lua/content_by_lua>, the lua variable is evaluated as
+C<nil>. Module
+L<ngx_lua> and its command L<ngx_lua/ngx.say> will convert Lua C<nil> into
+string C<"nil">
+before it is printed, so the output will be:
+
+    :bash
+    curl 'http://localhost:8080/test'
+    $blah = nil
+
+This is indeed what we want.
+
+We should have noticed also, when command L<ngx_lua/content_by_lua> includes
+C<$blah>
+in its parameter, it is never evaluated as "variable interpolation" does
+(otherwise
+Nginx will be complaining variable C<$blah> is not declared). This is because
+command
+L<ngx_lua/content_by_lua> does not really support "variable interpolation"
+. As we have
+said earlier in L<vartut/ (01)>, Nginx command does not necessarily support
+"variable
+interpolation" and it is entirely up to the module implementation.
+
+It's actually difficult to return an "invalid" non-value. As we learnt
+in L<vartut/ (07)>,
+variables which are declared but not initialized by L<ngx_rewrite/set>
+has non-value "invalid".
+However, as soon as the variable is devalued, the "get handler" is executed
+and an empty
+string is computed and cached, so eventually empty string is returned,
+not the "invalid" non-value.
+Following lua code can prove this:
+
+    :nginx
+    location /foo {
+        content_by_lua '
+            if ngx.var.foo == nil then
+                ngx.say("$foo is nil")
+            else
+                ngx.say("$foo = [", ngx.var.foo, "]")
+            end
+        ';
+    }
+
+    location /bar {
+        set $foo 32;
+        echo "foo = [$foo]";
+    }
+
+By requesting to C<location /foo> we have:
+
+    :bash
+    $ curl 'http://localhost:8080/foo'
+    $foo = []
+
+As we can tell, when Lua references uninitialized Nginx variable
+C<$foo>, it obtains empty string.
+
+Last not the least, we should have pointed out, although Nginx variable
+can have only strings as valid value. The 3rd party module L<ngx_array_var>
+can support array like operations for Nginx variable.Here is an example:
+
+    :nginx
+    location /test {
+        array_split "," $arg_names to=$array;
+        array_map "[$array_it]" $array;
+        array_join " " $array to=$res;
+
+        echo $res;
+    }
+
+Module L<ngx_array_var> provides commands C<array_split>, C<array_map>
+and C<array_join>. The semantics is pretty close to the builtin functions
+C<split>, C<map> and C<join> in Perl (other languages support similar
+functionalities too). Now let's check what happens when C<location /test>
+is
+requested:
+
+    :bash
+    $ curl 'http://localhost:8080/test?names=Tom,Jim,Bob
+    [Tom] [Jim] [Bob]
+
+Clearly module L<ngx_array_var> make it easier to handle inputs with variable
+length, such as the URL parameter C<name>, which composes of multiple comma
+delimited
+names. Still we must emphasize, module L<ngx_lua> is a much better choice
+to execute
+this kind of complicated tasks, usually it is more flexible and maintainable.
+
+Till now the tutorial covers the Nginx variable. In the process we have
+been discussing
+many builtin and 3rd party Nginx modules, these modules help us better
+understand features
+and internals of Nginx variable by composing various mini constructs. Later
+on the tutorial
+will be covering more details of those modules.
+
+With these examples, we should understand that Nginx variable plays a key
+role in the
+Nginx mini language: variables are the ways and means Nginx communicate
+internally, they
+contain all the needed information (including the request information)
+and they are the
+cornerstone elements which bridge every other Nginx modules. Nginx variables
+are everywhere
+in the coming tutorials, understand them is absolutely necessary.
+
+In the coming tutorial L<Nginx command execution ordering>, we will be
+discussing in detail
+the Nginx execution ordering and the phases every request traverses. It'
+s indispensable to
+understand them since for the Nginx mini language, the ordering of writing
+can be dramatically
+different from the ordering of executing in the timeline. It usually confuses
+many Nginx users.
+
