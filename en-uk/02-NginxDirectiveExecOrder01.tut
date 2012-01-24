@@ -1,0 +1,243 @@
+= Nginx directive execution order (01) =
+
+It can be really frustrated for many Nginx users, that
+if multiple Nginx module's commands are written within
+one C<location> directive, the execution order can be
+very different from the order they were written. For those
+impatient who choose "try out possibilities before everything
+else", the directive commands can be scattered like a hell.
+This series is to uncover the mysteries and help you better
+understand the execution ordering behind the scene.
+
+We start with a confused example:
+
+    :nginx
+    ? location /test {
+    ?     set $a 32;
+    ?     echo $a;
+    ?
+    ?     set $a 56;
+    ?     echo $a;
+    ? }
+
+Clearly, we'd expect to output C<32>, followed by C<56>. Because
+variable C<$a> has been reset after command L<ngx_echo/echo> "is
+executed". Really? you are welcomed to the reality:
+
+    :bash
+    $ curl 'http://localhost:8080/test
+    56
+    56
+
+Wow, statement C<set $a 56> must have had been executed before
+the first C<echo $a> command, but why? Is it a Nginx bug ?
+
+There ain't any Nginx bug here, or we'd rather rephrase it as a
+feature, and it's a long story. When Nginx handles every request,
+the execution follows a few predefined phases.
+
+There can be altogehter 11 phases when Nginx handles a request, let's
+start with three most common ones: C<rewrite>, C<access> and C<content>
+(later on the other phases will be addressed)
+
+Usually a Nginx module and its commands register their execution
+in only one of those phases. For example command L<ngx_rewrite/set> runs
+in phase C<rewrite>, and command L<ngx_echo/echo> runs in phase C<content>.
+Since phase C<rewrite> occurs before phase C<content> for every request
+processing, its commands are executed earlier as well. Therefore,
+command L<ngx_rewrite/set> always gets executed before command L<ngx_echo/echo>
+within one C<location> directive, regardless of their statement ordering
+in the
+configuration.
+
+Back to our example:
+
+    :nginx
+    set $a 32;
+    echo $a;
+
+    set $a 56;
+    echo $a;
+
+The actual execution ordering is:
+
+    :nginx
+    set $a 32;
+    set $a 56;
+    echo $a;
+    echo $a;
+
+It's clear now, two commands L<ngx_rewrite/set> are executed in phase
+C<rewrite>, two commands L<ngx_echo/echo> are executed afterwards in
+phase C<content>. Commands belonging to different phases cannot be
+executed back and forth.
+
+To prove ourselves and better uncover these points, We can
+troubleshoot Nginx's "debug log".
+
+We've not checked Nginx "debug log" before, so let's briefly introduce
+its usage."debug log" by default is disabled, because it has very
+big runtime overheads and overall Nginx service is degraded. To enable
+"debug log" we would need to reconfigure and recompile Nginx binary, by
+giving C<--with-debug> option for the package's C<./configure> script.
+The typical steps are as following when build under Linux or Mac OS X
+from source:
+
+    :bash
+    tar xvf nginx-1.0.10.tar.gz
+    cd nginx-1.0.10/
+    ./configure --with-debug
+    make
+    sudu make install
+
+In case the package L<ngx_openresty|http://openresty.org> is used. The
+option C<--with-debug> can be used with its C<./configure> script as well.
+
+After we rebuild the Nginx debug binary with C<--with-debug> option,
+we still need to explicitly use the C<debug> log level (it's the lowest
+level)
+for command L<error_log>, in Nginx configuration:
+
+    :nginx
+    error_log logs/error.log debug;
+
+C<debug>, the second parameter of command L<error_log> is crucial. Its
+first
+parameter is error log's file path, F<logs/error.log>. Certainly we can
+use
+another file path but do remember the location because we need to check
+its
+content right away.
+
+Now let's restart Nginx (Attention, it's not enough to reload Nginx. It
+needs
+to be killed and restarted because we've updated the Nginx binary). Then
+we
+can send the request again:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    56
+    56
+
+It's time to check Nginx's error log, which is becoming a lot more verbose
+(more than 700 lines for the request in my setup). So let's apply the C<grep>
+command to filter what we would be interested:
+
+    :bash
+    grep -E 'http (output filter|script (set|value))' logs/error.log
+
+It's approximately like below (for clearness, I've edited the C<grep> output
+and remove its timestamp etc) :
+
+    :text
+    [debug] 5363#0: *1 http script value: "32"
+    [debug] 5363#0: *1 http script set $a
+    [debug] 5363#0: *1 http script value: "56"
+    [debug] 5363#0: *1 http script set $a
+    [debug] 5363#0: *1 http output filter "/test?"
+    [debug] 5363#0: *1 http output filter "/test?"
+    [debug] 5363#0: *1 http output filter "/test?"
+
+It barely makes any senses, does it? So let me interpret. Command
+L<ngx_rewrite/set> dumps two lines of debug info which start with
+C<http script>, the first line tells the value which command L<ngex_rewrite/set>
+has possessed, and the second line being the variable name it
+will be given to, so for the leading filtered log:
+
+    :text
+    [debug] 5363#0: *1 http script value: "32"
+    [debug] 5363#0: *1 http script set $a
+
+These two lines are generated by this statement:
+
+    :nginx
+    set $a 32;
+
+And for the following filtered log:
+
+    :text
+    [debug] 5363#0: *1 http script value: "56"
+    [debug] 5363#0: *1 http script set $a
+
+They are generated by this statement:
+
+    :nginx
+    set $a 56;
+
+Besides, whenever Nginx outputs its response, its "output filter"
+will be executed, our favorite command L<ngx_echo/echo> is no exception.
+As soon as Nginx's "output filter" is executed, it generates debug
+log like below:
+
+    :text
+    [debug] 5363#0: *1 http output filter "/test?"
+
+Of course the debug log might not have C<"/test?">, since this part
+corresponds to the actual request URI. By putting everything together,
+we can finally conclude those two commands L<ngx_rewrite/set> are
+indeed executed before the other two commands L<ngx_echo/echo>.
+
+Considerate readers must have noticed that there are three lines of
+C<http output filter> debug log but we were having only two output
+commands L<ngx_echo/echo>. In fact, only the first two debug logs are
+generated by the two L<ngx_echo/echo> statements. The last debug log
+is added by module L<ngx_echo> because it needs to flag the end of
+output. The flag operation itself causes Nginx's "output filter" to
+be executed again. Many modules including L<ngx_proxy> has similar
+behavior, when they need to give output data.
+
+All right, there are no surprises with those duplicated C<56> outputs.
+We are not given a chance to execute L<ngx_echo/echo> in front of the
+second L<ngx_rewrite/set> command. Luckily, we can still achieve this with
+a few techniques:
+
+    :nginx
+    location /test {
+        set $a 32;
+        set $saved_a $a;
+        set $a 56;
+
+        echo $saved_a;
+        echo $a;
+    }
+
+Now we have what we have wanted:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    32
+    56
+
+With the help of another user variable C<$saved_a>, the value of C<$a>
+is saved before it is overwritten. Be careful, the execution order of
+multiple L<ngx_rewrite/set> commands are ensured to be like their order
+of writing by module <ngx_rewrite>. Similarly, module L<ngx_echo> ensures
+multiple L<ngx_echo/echo> commands get executed in the same order of
+their writing.
+
+If we recall examples in L<Nginx Variables>, this technique has been
+applied extensively. It bypasses the execution ordering difficulties
+introduced by Nginx phased processing.
+
+You might need to ask : "how would I know the phase a Nginx command belongs
+to ?" Indeed, the answer is RTFD. (Surely advanced developers can
+examine the C source code directly). Many module marks explicitly its
+applicable phase in the module's documentation, such as command L<ngx_echo/echo>
+writes below in its documentation:
+
+    :text
+    phase: content
+
+It says the command is executed in phase C<content>. If you encounters
+a module which misses the applicable phase in the document, you can write
+to its authors right away and ask for it. However, we shall be reminded,
+not every command has an applicable phase. Examples are command L<ngx_geo/geo>
+introduced in L<vartut/Nginx Variables (01)> and command L<ngx_map/map>
+introduced in L<vartut/Nginx Variables (04>. These commands, who have no
+explicit applicable phase, are declarative and unrelated to the conception
+of
+execution ordering. Igor Sysoev, the author of Nginx, has made the statements
+a few times publicly, that Nginx mini language in its configuration is
+"declarative" not "procedural".
+
