@@ -1,0 +1,224 @@
+= Nginx directive execution order (04) =
+
+Module L<ngx_lua> implements another command L<ngx_lua/access_by_lua>.
+The command allows lua code to be executed in the end of C<access> phase,
+which means it always executes after L<ngx_access/allow> and L<ngx_access/deny>
+even they belong to the same phase. In many cases, we examine the request'
+s
+source IP address with L<ngx_access>, and use command L<ngx_lua/access_by_lua>
+to execute more complicated verifications with Lua. For example by
+querying a database or other backend services, the current user's identity
+and privileges are examined.
+
+We can check a simple example, which uses command L<ngx_lua/access_by_lua>
+to implement the IP filtering functionality of module L<ngx_access>
+
+    :nginx
+    location /hello {
+        access_by_lua '
+            if ngx.var.remote_addr == "127.0.0.1" then
+                return
+            end
+
+            ngx.exit(403)
+        ';
+
+        echo "hello world";
+    }
+
+Nginx's builtin variable L<ngx_core/$remote_addr> is referenced
+in Lua to get the client's IP address. Then Lua statement C<if> is
+used to determine if the address equals C<127.0.0.1>. Lua returns
+if it equals, Nginx thus continues the subsequent handling
+(including the C<content> phase where command L<ngx_echo/echo>
+applies to). If it is not the localhost address, current handling
+is aborted by using L<ngx_lua> module's Lua function L<ngx_lua/ngx.exit>
+Client gets a http error C<403>.
+
+The example is equivalent to the other example using L<ngx_access> module
+in terms of functionality, which was discussed in L<ordertut/ (03)>:
+
+    :nginx
+    location /hello {
+        allow 127.0.0.1;
+        deny all;
+
+        echo "hello world";
+    }
+
+However we shall point out, performance wise the two still have differences.
+Module L<ngx_access> performs better because it is specifically implemented
+as a Nginx module in C.
+
+We can measure the performance differences of the two. After all, performance
+is what we are after by using Nginx. On the other hand, it's absolutely
+necessary to be equipped with measuring techniques, because only actual
+data
+distinguishes amateurs and professionals. In fact, both L<ngx_lua> and
+<ngx_access>
+perform pretty good for IP filtering. To minimize measuring errors we could
+measure directly the elapsed time of C<access> phase. Traditionally, this
+means
+hacking Nginx source code with timing code and statistical code, or recompile
+Nginx binary so that it can be monitored by specific profiling tools like
+C<GNU gprof>.
+
+We are lucky, because current releases of Solaris, Mac OSX or FreeBSD offer
+a system utility C<dtrace>, which allows micro monitoring of user process
+in terms of performance (and functionality as well). The tool spares us
+from hacking source code or recompilation with profiling. Let's demonstrate
+the measuring scenario on the MacBook Air because C<dtrace> is available
+since Mac OS X 10.5
+
+First, open the Terminal application of Mac OSX, change to your preferable
+path and create a file named as F<nginx-access-time.d>, edit the file with
+following content:
+
+    :d
+    #!/usr/bin/env dtrace -s
+
+    pid$1::ngx_http_handler:entry
+    {
+        elapsed = 0;
+    }
+
+    pid$1::ngx_http_core_access_phase:entry
+    {
+        begin = timestamp;
+    }
+
+    pid$1::ngx_http_core_access_phase:return
+    /begin > 0/
+    {
+        elapsed += timestamp - begin;
+        begin = 0;
+    }
+
+    pid$1::ngx_http_finalize_request:return
+    /elapsed > 0/
+    {
+        @elapsed = avg(elapsed);
+        elapsed = 0;
+    }
+
+Save the file and make it executable.
+
+    :bash
+    $ chmod +x ./nginx-access-time.d
+
+The F<.d> file actually contains code written in C<D> language
+offered by utility C<dtrace> (attention, the C<D> language is
+not the other C<D> language, which is advocated by Walter Bright
+for a better C++). So far we cannot really explain in detail the
+code because it requires a thorough understanding of Nginx internals.
+Anyway we shall be clear of the code's purpose: measure requests
+being handled by specific Nginx worker process and calculate the
+average time elapsed in C<access> phase.
+
+Now we can get the C<D> script running. The script takes a command
+line parameter, which is the process id (pid) of Nginx worker. Since
+Nginx supports multiple worker processes and the requests can be
+randomly handled by anyone of them, we'd like to configure Nginx
+in its configuration F<nginx.conf> so that only one worker is requested.
+
+    :nginx
+    worker_processes 1;
+
+After Nginx binary is restarted, the worker process id can be obtained
+by command C<ps>.
+
+    :bash
+    $ ps ax|grep nginx|grep worker|grep -v grep
+
+Typically we have:
+
+    :text
+    10975   ??  S      0:34.28 nginx: worker process
+
+C<10975> is my Nginx worker pid. In case you have multiple lines, you must
+have started multiple Nginx server instances or the current Nginx server
+has started multiple worker processes.
+
+Then as root, script F<nginx-access-time.d> is executed with the worker
+pid
+
+    :bash
+    $ sudo ./nginx-access-time.d 10975
+
+We shall have one output message if everything goes OK.
+
+    :text
+    dtrace: script './nginx-access-time.d' matched 4 probes
+
+The message says our C<D> script has successfully deployed 4 probes on
+the target process. Then the script is ready to trace process C<10975>
+constantly.
+
+Let's open another Terminal, and send multiple requests with C<curl>
+to our monitored process
+
+    :bash
+    $ curl 'http://localhost:8080/hello'
+    hello world
+
+    $ curl 'http://localhost:8080/hello'
+    hello world
+
+Back to our Terminal where C<D> script is running, press keys
+C<Ctrl-C> to interrupt it. When the script bails out it prints
+on console the statistical result. For example my console has
+following result:
+
+    :bash
+    $ sudo ./nginx-access-time.d 10975
+    dtrace: script './nginx-access-time.d' matched 4 probes
+    ^C
+           19219
+
+The final C<19219> is the average time elapsed in C<access>
+phase in nano seconds (1 second = 1000x1000x1000 nano seconds)
+
+Done with the steps. We can run the F<nginx-access-time.d>
+script to calculate average elapsed time in phase C<access>
+for three different Nginx setups respectively. They are IP
+filtering with module L<ngx_access>, IP filtering with command
+L<ngx_lua/access_by_lua>, and finally no filtering for C<access>
+phase. The last result helps eliminate the side effect caused
+by probes or other "systematic errors". Besides, we can use
+traffic loader tools such as C<ab> to sends half a million requests
+to minimize "random errors", as below:
+
+    :bash
+    $ ab -k -c1 -n100000 'http://127.0.0.1:8080/hello'
+
+Therefore the statistical result of C<D> script is as close as
+possible to the "actual" time.
+
+In the Mac OSX, a typical run has following results:
+
+    :text
+    ngx_access                   18146
+    access_by_lua                35011
+    no filtering                 15887
+
+We minus the last value from the former two:
+
+    :text
+    ngx_access                2259
+    access_by_lua            19124
+
+Well, module L<ngx_access> out performs command L<ngx_lua/access_by_lua>
+by a magnitude, as we might have expected. Still the absolute
+difference is tiny. For the C<Intel Core2Due 1.86 GHz> CPU of mine,
+there is only a few micro seconds.
+
+In fact the L<ngx_lua/access_by_lua> example can be further optimized
+using builtin variable L<ngx_core/$binary_remote_addr>. This variable
+has the IP address in binary form whereas variable L<ngx_core/$remote_addr>
+has the address in a longer string format. Shorter address can be
+compared quicker when Lua executes its string operations.
+
+Be careful, if "debug log" is enabled as introduced in L<ordertut/ (01)>
+the computed elapsed time will increase dramatically, because "debug log"
+has a huge overhead.
+
