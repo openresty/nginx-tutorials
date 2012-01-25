@@ -1,0 +1,170 @@
+= Nginx directive execution order  (03) =
+
+As discussed earlier, unless special techniques are utilized
+as module L<ngx_set_misc> does, a module can not mix its
+commands with L<ngx_rewrite>, and expects the correct execution
+order. Even if the commands are registered in the C<rewrite>
+phase as well. We can demonstrate with some examples.
+
+3rd party module L<ngx_headers_more> provides a few commands,
+which deal with the current request header and response header.
+One of them is L<ngx_headers_more/more_set_input_header>. The
+command can modify a given request header in C<rewrite> phase
+(or add the specific header if it's not available in current
+request). As described in its documentation, the command always
+executes in the end of C<rewrite> phase:
+
+    :text
+    phase: rewrite tail
+
+Being terse though, C<rewrite tail> means the end of phase C<rewrite>.
+
+Since it executes in the end of phase C<rewrite>, the implication
+is its execution is always after the commands implemented in module
+C<ngx_rewrite>. Even if it is written at the very beginning:
+
+    :nginx
+    ? location /test {
+    ?     set $value dog;
+    ?     more_set_input_headers "X-Species: $value";
+    ?     set $value cat;
+    ?
+    ?     echo "X-Species: $http_x_species";
+    ? }
+
+As briefly introduced in L<vartut/Nginx Variables (02)>, Builtin
+variable L<$http_XXX> has the header C<XXX> for the current
+request. We must be careful though, variable <$http_XXX> matches
+to the normalized request header, i.e. it lower cases capital
+letters and turns minus C<-> into underscore C<_> for the request
+header names. Therefore variable C<$http_x_species> can successfully
+catches the request header C<X-Species>, which is declared by command
+L<ngx_headers_more/more_set_input_header>.
+
+Because of the statement ordering, we might have mistakenly concluded
+header C<X-Species> has the value C<dog> when C</test> is requested.
+But the actual result is different:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    X-Species: cat
+
+Clearly, statement C<set $value cat> is executed earlier than
+L<ngx_headers_more/more_set_input_headers>, although it is
+written afterwards.
+
+This example tells us that commands of different modules
+are executed independently from each other, even if they are
+all registered in the same processing phase. (unless it is implemented
+as module L<ngx_set_misc>, whose commands are specifically tuned
+with module L<ngx_rewrite>). In other words, every processing
+phase is further divided into sub-phases by Nginx modules.
+
+Similar to L<ngx_headers_more/more_set_input_headers>, command
+L<ngx_lua/rewrite_by_lua> provided by 3rd party module
+L<ngx_lua> execute in the end of C<rewrite> phase as well.
+We can verify this:
+
+    :nginx
+    ? location /test {
+    ?     set $a 1;
+    ?     rewrite_by_lua "ngx.var.a = ngx.var.a + 1";
+    ?     set $a 56;
+    ?
+    ?     echo $a;
+    ? }
+
+By using Lua code specified by command L<ngx_lua/rewrite_by_lua>
+Nginx variable C<$a> is incremented by 1.We might have expected
+the result be C<56> if we are looking at the writing sequence.The
+actual result is C<57> because command <ngx_lua/rewrite_by_lua>
+is always executed after all the L<ngx_rewrite/set> statements.
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    57
+
+Admittedly command L<ngx_lua/rewrite_by_lua> has different behavior
+than command L<ngx_lua/set_by_lua>, which is discussed in
+L<ordertut/ (02)>.
+
+Out of sheer curiosity, we shall ask immediately that what would
+be execution ordering in between L<ngx_headers_more/more_set_input_headers>
+and L<ngx_lua/rewrite_by_lua>, since they both ride on C<rewrite> tail?
+The answer is : undefined. We must avoid a configuration which relies
+on their execution orders.
+
+Nginx phase C<rewrite> is a rather early processing phase. Usually
+commands registered in this phase execute various rewrite tasks on
+the request (for example rewrite the URL or the URL parameters),
+the commands might also declare and initialize Nginx variables which
+are needed in the subsequent handling. Certainly, one cannot
+forbid others to complicate themselves by checking the request body,
+or visit a database etc. After all, command like L<ngx_lua/rewrite_by_lua>
+offers the caliber to stuff in any potentially mind twisted Lua code.
+
+After phase C<rewrite>, Nginx has another phase called C<access>.
+The commands provided by 3rd party module L<ngx_auth_request>, which is
+discussed in L<vartut/Nginx Varaibles (05)>, execute in phase C<access>.
+Commands registered in C<access> phase mostly carry out ACL functionalities,
+such as guarding user clearance, checking user origins, examining source
+IP validity etc.
+
+For example command L<ngx_access/allow> and L<ngx_access/deny> provided
+by builtin module L<ngx_access> can control which IP addresses have the
+privileges to visit, or which IP addresses are rejected:
+
+    :nginx
+    location /hello {
+        allow 127.0.0.1;
+        deny all;
+
+        echo "hello world";
+    }
+
+Location C</hello> allows visit from localhost (IP address C<127.0.0.1>)
+and reject requests from all other IP addresses (returns http error C<403>)
+The rules defined by L<ngx_access> commands are asserted in the writing
+sequence. Once one rule is matched, the assertion stops and all the rest
+L<ngx_access/allow> or L<ngx_access/deny> commands are ignored. If no rule
+is matched, handling continues in the following statements. If the matched
+rule is L<ngx_access/deny>, handing is aborted and error C<403> is returned
+immediately. In our example, request issued from localhost matches to
+the rule C<allow 127.0.0.1> and handing continues to the other statements,
+however request issued from every other IP addresses will match rule C<deny
+all>
+handling is therefore aborted and error C<403> is returned.
+
+We can give it a test, by sending request from localhost:
+
+    :bash
+    $ curl 'http://localhost:8080/hello'
+    hello world
+
+If request is sent from another machine (suppose Nginx runs on IP
+C<192.168.1.101> ) we have:
+
+    :bash
+    $ curl 'http://192.168.1.101:8080/hello'
+    <html>
+    <head><title>403 Forbidden</title></head>
+    <body bgcolor="white">
+    <center><h1>403 Forbidden</h1></center>
+    <hr><center>nginx</center>
+    </body>
+    </html>
+
+By the way, module L<ngx_access> supports the "CIDR notation" to designate
+a sub-network. For example C<169.200.179.4/24> represents the sub-network
+which has the routing prefix C<169.200.179.0> (or subnet mask C<255.255.
+255.0>)
+
+Because commands of module L<ngx_access> execute in C<access> phase,
+and phase C<access> is behind C<rewrite> phase. So for those commands we
+have
+been discussing, regardless of the writing order they always execute in
+C<rewrite> phase, which is earlier than L<ngx_access/allow> or L<ngx_access/deny>.
+Keep this in mind, we shall try our best to keep the writing and execution
+order
+consistent.
+
