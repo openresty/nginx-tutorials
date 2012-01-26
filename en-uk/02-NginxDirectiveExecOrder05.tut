@@ -1,0 +1,208 @@
+= Nginx directive execution order (05) =
+
+C<content> is by all means the most significant phase in Nginx's
+request handling, because commands running in the phase have the
+responsibility to generate "content" and output HTTP response.
+Because of its importance, Nginx has a rich set of commands running
+in it. The commands include L<ngx_echo/echo>, L<ngx_echo/echo_exec>,
+L<ngx_proxy/proxy_pass>, L<ngx_echo/echo_location>,
+L<ngx_lua/content_by_lua>, which were discussed in
+L<vartut/Nginx Variables (02)>, L<vartut/Nginx Variables (03)>,
+L<vartut/Nginx Variables (05)> and L<vartut/Nginx Variables (07)>
+respectively.
+
+C<content> is a phase which runs later than C<rewrite> and C<access>.
+Therefore its commands always execute in the end when they are used
+together with commands of C<rewrite> and C<access>.
+
+    :nginx
+    location /test {
+        # rewrite phase
+        set $age 1;
+        rewrite_by_lua "ngx.var.age = ngx.var.age + 1";
+
+        # access phase
+        deny 10.32.168.49;
+        access_by_lua "ngx.var.age = ngx.var.age * 3";
+
+        # content phase
+        echo "age = $age";
+    }
+
+This is a perfect example, in which commands are executed
+in an exact sequence as they are written. The testing result
+matches to our expectations too.
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    age = 6
+
+In fact, the commands' writing order can be completely shuffled
+and it won't have any impact to their execution sequence.
+Command L<ngx_rewrite/set>, which is implemented by module
+L<ngx_rewrite>, executes in C<rewrite> phase. Command
+L<ngx_lua/rewrite_by_lua> from module L<ngx_lua> executes in
+the end of C<rewrite> phase. Command L<ngx_access/deny> from
+module L<ngx_access> executes in C<access> phase. Command
+L<ngx_lua/access_by_lua> from module L<ngx_lua> executes in
+the end of C<access> phase. Finally, our favorite command
+L<ngx_echo/echo>, implemented by module L<ngx_echo>, executes
+in C<content> phase.
+
+The example also demonstrates the collaborating in between commands
+running on each different Nginx phase. In the process, Nginx variable
+is the data carrier interconnecting commands and modules. The execution
+order of these commands is largely decided by the phase each applies
+to.
+
+As matter of fact, multiple commands from different modules
+could coexist in phase C<rewrite> and C<access>. As the example shows,
+command L<ngx_rewrite/set> and command L<ngx_lua/rewrite_by_lua>
+both belong to phase C<rewrite>. Command L<ngx_access/deny>
+and command L<ngx_lua/access_by_lua> both belong to phase C<access>.
+However it is not the same story for phase C<content>.
+
+Most modules, when they implement commands for phase C<content>, they
+are actually inserting "content handler" for the current C<location>
+directive, however there can be one and only one "content handler"
+for a C<location>. So only one module could beat the rest when multiple
+modules are contending the role. Consider following problematic example:
+
+    :nginx
+    ? location /test {
+    ?     echo hello;
+    ?     content_by_lua 'ngx.say("world")';
+    ? }
+
+Command L<ngx_echo/echo> from module L<ngx_echo> and command
+L<ngx_lua/content_by_lua> from module L<ngx_lua> both execute in
+phase C<content>. But only one of them could successfully become
+"content handler":
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    world
+
+Our test indicates, that the winner is L<ngx_lua/content_by_lua>
+although it is written afterwards, and command L<ngx_echo/echo>
+never really has a chance to run. We cannot be assured which module
+wins in the circumstance. For example, module L<ngx_echo> wins and
+the output becomes C<hello> if we swap the L<ngx_lua/content_by_lua>
+and L<ngx_echo/echo> statements. So we shall avoid to use multiple
+commands for phase C<content>, if the commands are implemented by
+different modules.
+
+The example can be modified by replacing command L<ngx_lua/content_by_lua>
+with command L<ngx_echo/echo> and we will get what we need:
+
+    :nginx
+    location /test {
+        echo hello;
+        echo world;
+    }
+
+Again test proves:
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    hello
+    world
+
+We can use multiple L<ngx_echo/echo> commands, there is no problem
+with this because they all belong to module L<ngx_echo>. Module
+L<ngx_echo> regulates the execution ordering of them. Be careful
+though, not every module supports the commands being executed
+multiple times within one C<location>. Command L<ngx_lua/content_by_lua>
+for an instance, can be used only once, so following example
+is incorrect:
+
+    :nginx
+    ? location /test {
+    ?     content_by_lua 'ngx.say("hello")';
+    ?     content_by_lua 'ngx.say("world")';
+    ? }
+
+Nginx dumps error for the configuration:
+
+    :text
+    [emerg] "content_by_lua" directive is duplicate ...
+
+The correct way of doing it is:
+
+    :nginx
+    location /test {
+        content_by_lua 'ngx.say("hello") ngx.say("world")';
+    }
+
+Instead of using twice the L<ngx_lua/content_by_lua> command in
+C<location>, the approach is to call function L<ngx_lua/ngx.say> twice
+in the Lua code, which is executed by command L<ngx_lua/content_by_lua>
+
+Similarly, command L<ngx_proxy/proxy_pass> from module L<ngx_proxy>
+cannot coexist with command L<ngx_echo/echo> within one C<location>
+because they both execute in C<content> phase. Many Nginx newbies
+make following mistake:
+
+    :nginx
+    ? location /test {
+    ?     echo "before...";
+    ?     proxy_pass http://127.0.0.1:8080/foo;
+    ?     echo "after...";
+    ? }
+    ?
+    ? location /foo {
+    ?     echo "contents to be proxied";
+    ? }
+
+The example tries to output strings C<"before..."> and
+C<"after..."> with command L<ngx_echo/echo> before and
+after module L<ngx_proxy> returns its content. However
+only one module could execute in C<content>. The test
+indicates module L<ngx_proxy> wins and command
+L<ngx_echo/echo> from module L<ngx_echo> never runs
+
+    :bash
+    $ curl 'http://localhost:8080/test'
+    contents to be proxied
+
+To implement what the example had wanted to, we shall
+use two other commands provided by module L<ngx_echo>,
+L<ngx_echo/echo_before_body> and L<ngx_echo/echo_after_body>:
+
+    :nginx
+    location /test {
+        echo_before_body "before...";
+        proxy_pass http://127.0.0.1:8080/foo;
+        echo_after_body "after...";
+    }
+
+    location /foo {
+        echo "contents to be proxied";
+    }
+
+Test tells we make it:
+
+    $ curl 'http://localhost:8080/test'
+    before...
+    contents to be proxied
+    after...
+
+The reason commands L<ngx_echo/echo_before_body> and
+L<ngx_echo/echo_after_body> could coexist with other modules
+in C<content> phase, is they are not "content handler" but
+"output filter" of Nginx. Back in L<ordertut/ (01)> when
+we examine the "debug log" generated by command L<ngx_echo/echo>
+, we've learnt Nginx calls its "output filter" whenever
+Nginx outputs data. So that module L<ngx_echo> takes the
+advantage of it to modify content generated by module L<ngx_proxy>
+(by adding surrounding content). We shall point out though,
+"output filter" is not one of those 11 phases mentioned in
+L<ordertut/ (01)> (many phases could trigger "output filter" when
+they output data). Still it's perfectly all right to document
+commands L<ngx_echo/echo_before_body> and L<ngx_echo/echo_after_body>
+as following:
+
+    phase: output filter
+
+It means the command executes in "output filter".
+
