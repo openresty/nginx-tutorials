@@ -125,7 +125,8 @@ abstract "resource", not the specific C<location>.
 
 Another frequent mistake is missing the command for phase C<content>,
 when they actually don't expect the default static modules to come into
-play, for example:
+play,
+for example:
 
     :nginx
     location /auth {
