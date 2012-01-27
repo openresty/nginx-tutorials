@@ -63,7 +63,7 @@
 因为没有配置 L<ngx_core/root> 指令，所以在访问这个接口时，Nginx
 会自动计算出一个缺省的“文档根目录”。该缺省值是取所谓的“配置前缀”（configure
 prefix）路径下的 F<html/> 子目录。举一个例子，假设“配置前缀”是
-F</foo/bah/>，
+F</foo/bar/>，
 则缺省的“文档根目录”便是 F</foo/bar/html/>.
 
 那么“配置前缀
