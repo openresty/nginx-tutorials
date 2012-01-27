@@ -1,0 +1,155 @@
+= Nginx directive execution order (06) =
+
+We've learnt in L<ordertut/ (05)> that when a command executes
+in C<content> phase for a specific C<location>, it usually
+means its Nginx module registers a "content handler" for
+the C<location>. However, what happens if no module registers
+its command as "content handler" for phase C<content> ? Who
+will be taking the glory of generate content and output responses ?
+The answer is the static resource module, which maps the request
+URI to the file system. Static resource module only comes into play
+when there is none "content handler", otherwise it hands off the
+duty to "content handler".
+
+Typically Nginx has three static resource modules for the C<content>
+phase (unless one or more of those modules are disabled explicitly,
+or some other conflicting modules are enabled when Nginx is built)
+The three modules, in the order of their execution order, are
+L<ngx_index> module, L<ngx_autoindex> module and L<ngx_static> module.
+Let's discuss them one by one.
+
+Module L<ngx_index> and L<ngx_autoindex> only apply to those
+request URI, which ends with C</>. For the other request URI
+which does not end with C</>, both modules ignore them and let
+the following C<content> phase module handle. Module L<ngx_static>
+however, has an exact opposite strategy. It ignores the request
+URI which ends with C</> and handles the rest.
+
+Module L<ngx_index> mainly looks for a specific home page file,
+such as F<index.html> or F<index.htm> in the file system. For
+example:
+
+    :nginx
+    location / {
+        root /var/www/;
+        index index.htm index.html;
+    }
+
+When address C</> is requested, Nginx looks for file
+F<index.htm> and F<index.html> (in this order) in a path
+in the file system. The path is specified by command L<ngx_core/root>.
+If file F<index.htm> exists, Nginx jumps internally to
+location C<index.htm>; if it does not exist and file F<index.html>
+exists, Nginx jumps internally to location C<index.html>. If
+file F<index.html> does not exist either, and handling
+is transferred to the other module which executes it commands
+in phase C<content>.
+
+We have learnt in L<vartut/Nginx Variables (02)>, commands
+L<ngx_echo/echo_exec> and L<ngx_rewrite/rewrite> can trigger
+"internal jumps" as well. The jump modifies the request URI,
+and looks for the corresponding C<location> directive for
+subsequent handling. In the process, phases C<rewrite>,
+C<access> and C<content> are reiterated for the C<location>.
+The "internal jump" is different from the "external redirect"
+defined by HTTP response code 302 and 301, client browser
+won't update its URI addresses. Therefore as soon as internal
+jump occurs when module L<ngx_index> finds the files specified
+by command L<ngx_index/index>, the net effect is like client
+would have been requesting the file's URI at the very beginning.
+
+We can check following example to witness the "internal jump"
+triggered by module L<ngx_index>, when it finds the needed file.
+
+    :nginx
+    location / {
+        root /var/www/;
+        index index.html;
+    }
+
+    location /index.html {
+        set $a 32;
+        echo "a = $a";
+    }
+
+We need to create an empty file F<index/html> under the path
+F</var/www/>, and make sure the file is readable for the Nginx
+worker process. Then we could send request to C</>:
+
+    :bash
+    $ curl 'http://localhost:8080/'
+    a = 32
+
+What happened ? Why the output is not the content of
+file F<index.html> (which shall be empty) ? Firstly Nginx uses
+directive C<location /> to handle original C<GET /> request, then
+module L<ngx_index> executes in C<content> phase, and it finds
+file F<index.html> under path F</var/www/>. At this moment, it
+triggers an "internal jump" to location C</index.html>.
+
+So far so good. But here comes the surprises ! When Nginx
+looks for C<location> directive which matches to C</index.html>,
+C<location /index.html> has a higher priority than C<location />.
+This is because Nginx uses "longest matched substring" semantics
+to match C<location> directives to request URI's prefix. When
+<location /index.html> directive is chosen, phases C<rewrite>,
+C<access> and C<content> are reiterated, and eventually it
+outputs C<a = 32>.
+
+What if we remove file F</var/www/index.html> in the example, and
+request to C</> again ? The answer is error C<403 Forbidden>. Why?
+When module L<ngx_index> cannot find the file specified by command
+L<ngx_index/index> (F<index.html> in here), it transfers the
+handling to the following module which executes in C<content>.
+But none of those following modules can fulfill the request, Nginx
+bails out and dumps us error. Meanwhile it logs the error in Nginx
+error log:
+
+    :text
+    [error] 28789#0: *1 directory index of "/var/www/" is forbidden
+
+The meaning of C<directory index> is to generate "indexes". Usually
+this implies to generate a web page, which lists every file and sub
+directories under path C</var/www/>. If we use module L<ngx_autoindex>
+right after L<ngx_index>, it can generate such a page just like
+what we need. Now let's modify the example a little bit:
+
+    :nginx
+    location / {
+        root /var/www/;
+        index index.html;
+        autoindex on;
+    }
+
+When C</> is requested again meanwhile file F</var/www/index.html>
+is kept missing. A nice html page is generated:
+
+    :bash
+    $ curl 'http://localhost:8080/'
+    <html>
+    <head><title>Index of /</title></head>
+    <body bgcolor="white">
+    <h1>Index of /</h1><hr><pre><a href="../">../</a>
+    <a href="cgi-bin/">cgi-bin/</a>  08-Mar-2010 19:36   -
+    <a href="error/">error/</a>      08-Mar-2010 19:36   -
+    <a href="htdocs/">htdocs/</a>    05-Apr-2010 03:55   -
+    <a href="icons/">icons/</a>      08-Mar-2010 19:36   -
+    </pre><hr></body>
+    </html>
+
+The page shows there are a few subdirectories under my F</var/www/>.
+They are F<cgi-bin/>, F<error/>, F<htdocs/> and F<icons/>. The output
+might be different if you have tried by yourself.
+
+Again, if file F</var/www/index.hmtl> does exist, module L<ngx_index>
+will trigger "internal jump", and module L<ngx_autoindex> will not have
+a chance to execute, you may test it yourself too.
+
+The "goal keeper" module executed in phase C<content> is L<ngx_static>.
+which is also used intensively. The module serves the static files, including
+the static resources of a web site, such as static F<.html> files, static
+F<.css> files, static F<.js> files and static image files etc. Although
+L<ngx_index> could trigger an "internal jump" to the specified home page,
+but the actual output task (takes the file content as response, and marks
+the corresponding response headers) is carried out by module L<ngx_static>.
+
