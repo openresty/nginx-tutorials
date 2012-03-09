@@ -7,7 +7,7 @@
 阶段，包括 L<vartut/Nginx 变量漫谈（二）> 中介绍过的 L<ngx_rewrite/rewrite>
 指令。不过，值得一提的是，当这些指令使用在 C<server> 配置块中时，则会
 运行在一个我们
-尚未提及的更早的处理阶段，C<server rewrite> 阶段。
+尚未提及的更早的处理阶段，C<server-rewrite> 阶段。
 
 L<vartut/Nginx 变量漫谈（二）> 中介绍过的 L<ngx_set_misc>
 模块的 L<ngx_set_misc/set_unescape_uri> 指令同
