@@ -66,7 +66,7 @@ r了标准内建变量 L<ngx_core/$remote_addr> 来
 
 如果从另一台机器访问这个 C</test> 接口，即使指定了合法的 C<X-My-IP>
 请求头，也不会触发 Nginx 对来源地址进行改写，因为在上例中，我们已经使用
-L<set_real_ip_from> 指令规定了只对来自 C<127.0.0.1>
+L<ngx_realip/set_real_ip_from> 指令规定了只对来自 C<127.0.0.1>
 这个本地 IP 地址的请求生效，从而可以避免来自其他不受信任的地址的恶意欺骗。当
 然，我们也可以在 L<ngx_realip/set_real_ip_from>
 指令指定一个 IP 网段（利用 L<ordertut/（三）> 中介绍过的“CIDR
@@ -144,7 +144,7 @@ $a hello> 语句运行。该例的运行结果证明了这一点：
     from: 1.2.3.4
 
 在这个例子中，虽然 L<ngx_rewrite/set> 指令写在了 L<ngx_realip>
-的配置指令之前，但仍然晚于 L<ngx_realip> 模块执行。所以 L<$addr>
+的配置指令之前，但仍然晚于 L<ngx_realip> 模块执行。所以 C<$addr>
 变量在 C<server-rewrite> 阶段被 L<ngx_rewrite/set>
 指令赋值时，从 L<ngx_core/$remote_addr> 变量读出的来源
 地址已经是经过 L<ngx_realip> 模块改写过的。
