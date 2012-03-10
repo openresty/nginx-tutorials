@@ -16,7 +16,7 @@
 配置块之后，会立即打印一条调试信息到错误日志文件中。我们来看这样的一个例子：
 
     :nginx
-    location = /hello {
+    location /hello {
         echo "hello world";
     }
 
@@ -25,7 +25,7 @@
 
     :bash
     $ grep 'using config' logs/error.log
-    [debug] 84579#0: *1 using configuration "=/hello"
+    [debug] 84579#0: *1 using configuration "/hello"
 
 我们有意省略了信息行首的时间戳，以方便放到这里。
 
@@ -84,22 +84,22 @@ C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx
 反复的 URI 改写，例如：
 
     :nginx
-    location = /foo {
+    location /foo {
         rewrite ^ /bar;
         rewrite ^ /baz;
 
         echo foo;
     }
 
-    location = /bar {
+    location /bar {
         echo bar;
     }
 
-    location = /baz {
+    location /baz {
         echo baz;
     }
 
-这里，我们在 C<location = /foo> 中连续把当前请求的 URI
+这里，我们在 C<location /foo> 中连续把当前请求的 URI
 改写了两遍。第一遍先无条件地改写成了 C</bar>，第二遍再无条件地改写成了
 C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
 会最后在 C<find-config> 阶段触发一次“内部跳转”操作，从而不至于
@@ -117,8 +117,8 @@ C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
 
     :bash
     $ grep 'using config' logs/error.log
-    [debug] 89449#0: *1 using configuration "=/foo"
-    [debug] 89449#0: *1 using configuration "=/baz"
+    [debug] 89449#0: *1 using configuration "/foo"
+    [debug] 89449#0: *1 using configuration "/baz"
 
 我们看到，一共只匹配过 C</foo> 和 C</baz> 这两个 C<location>
 块，因此只发生过一次“内部跳转”。
