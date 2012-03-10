@@ -24,7 +24,13 @@ L<ngx_rewrite> 模块的指令用于 C<location> 块中时便是
 C<rewrite> 阶段再往后便是所谓的 C<post-rewrite> 阶段
 。这个阶段也像 C<find-config> 阶段那样不接受 Nginx 模块注
 册处理程序，而是由 Nginx 核心完成 C<rewrite> 阶段所要求的“内
-部跳转”操作（如果 C<rewrite> 阶段运行的配置指令有此要求的话）。先前在 L<vartut/（二）> 中已经介绍过了“内部跳转”的概念，同时演示了如何通过 L<ngx_echo/echo_exec> 指令或者 L<ngx_rewrite/rewrite> 指令来发起“内部跳转”。由于 L<ngx_echo/echo_exec> 指令运行在 C<content> 阶段，与我们这里讨论的 C<post-rewrite> 阶段并无关系，这里我们感兴趣的是运行在 C<rewrite> 阶段的 L<ngx_rewrite/rewrite> 指令。回忆 L<vartut/（二）> 中演示过的这个例子：
+部跳转”操作（如果 C<rewrite> 阶段运行的配置指令有此要求的话）。先前
+在 L<vartut/（二）> 中已经介绍过了“内部跳转”的概念，同时演示了如何
+通过 L<ngx_echo/echo_exec> 指令或者 L<ngx_rewrite/rewrite>
+指令来发起“内部跳转”。由于 L<ngx_echo/echo_exec> 指令运
+行在 C<content> 阶段，与我们这里讨论的 C<post-rewrite>
+阶段并无关系，这里我们感兴趣的是运行在 C<rewrite> 阶段的 L<ngx_rewrite/rewrite>
+指令。回忆 L<vartut/（二）> 中演示过的这个例子：
 
     :nginx
     server {
@@ -40,9 +46,53 @@ C<rewrite> 阶段再往后便是所谓的 C<post-rewrite> 阶段
         }
     }
 
-这里在 C<location /foo> 中通过 L<ngx_rewrite/rewrite> 指令把当前请求的 URI 无条件地改写为 C</bar>，同时发起一个“内部跳转”，跳进了 C<location /bar> 中。
+这里在 C<location /foo> 中通过 L<ngx_rewrite/rewrite>
+指令把当前请求的 URI 无条件地改写为 C</bar>，同时发起一个“内部跳转
+”，最终跳进了 C<location /bar> 中。这里比较有趣的地方是“内部
+跳转”的工作原理。“内部跳转”本质上其实就是把当前的请求处理阶段强行倒退到 C<find-config>
+阶段重新进行一次请求 URI 与 C<location> 配置块之间的配对工作，
+比如上例中，运行在 C<rewrite> 阶段的 <ngx_rewrite/rewrite>
+指令就让当前请求的处理阶段倒退回了 C<find-config> 阶段，重新进行
+C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx_rewrite/rewrite>
+指令修改为了 C</bar>，所以这一次换成了 C<location /bar>
+与当前请求相关联，然后接着从 C<rewrite> 阶段继续往下执行。
+
+不过这里更有趣的地方是，倒退回 C<find-config> 阶段的动作并不是发
+生在 C<rewrite> 阶段，而是发生在后面的 C<post-rewrite>
+阶段。上例中的 L<ngx_rewrite/rewrite> 指令只是简单地通知
+了一下 Nginx 核心有必要在随后 C<post-rewrite> 阶段发起实
+际的“内部跳转”。这个设计对于 Nginx 初学者来说，或许显得有些古怪－－为什
+么不直接在 C<ngx_rewrite/rewrite> 指令执行时立即进行跳转
+呢？答案其实很简单，那就是为了在最初匹配的 C<location> 块中支持多次
+反复的 URI 改写，例如：
 
     :nginx
     location = /foo {
+        rewrite ^ /bar;
+        rewrite ^ /baz;
+
+        echo foo;
     }
+
+    location = /bar {
+        echo bar;
+    }
+
+    location = /baz {
+        echo baz;
+    }
+
+这里，我们在 C<location = /foo> 中连续把当前请求的 URI
+改写了两遍。第一遍先无条件地改写成了 C</bar>，第二遍再无条件地改写成了
+C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
+会最后在 C<find-config> 阶段触发一次“内部跳转”操作，从而不至于
+在第一次改写 URI 时就直接跳离了当前的 C<location> 配置块，而导
+致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求上
+例中的 C</foo> 接口的结果证实了这一点：
+
+    $ curl localhost:8080/foo
+    baz
+
+从输出结果我们看到，上例确实成功地从 C</foo> 一步跳到了 C</baz>
+中。
 
