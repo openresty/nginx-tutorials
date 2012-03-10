@@ -12,6 +12,23 @@
 意写在了 C<server> 配置块中以确实其注册在 C<post-read>
 阶段的处理程序起作用。
 
+当 Nginx 在 C<find-config> 阶段成功匹配了一个 C<location>
+配置块之后，会立即打印一条调试信息到错误日志文件中。我们来看这样的一个例子：
+
+    :nginx
+    location = /hello {
+        echo "hello world";
+    }
+
+如果我们启用了 Nginx 的“调试日志”，那么当我们请求 C</hello>
+接口时，便可以在 F<error.log> 文件中过滤出下面这一行信息：
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 84579#0: *1 using configuration "=/hello"
+
+我们有意省略了信息行首的时间戳，以方便放到这里。
+
 运行在 C<find-config> 阶段之后的便是我们的老朋友，C<rewrite>
 阶段了。由于 Nginx 已经在 C<find-config> 阶段完成了当前请
 求与 C<location> 配置块之间的配对，所以从 C<rewrite> 阶
@@ -90,9 +107,60 @@ C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
 致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求上
 例中的 C</foo> 接口的结果证实了这一点：
 
+    :bash
     $ curl localhost:8080/foo
     baz
 
 从输出结果我们看到，上例确实成功地从 C</foo> 一步跳到了 C</baz>
-中。
+中。如果我们启用 Nginx “调试日志”的话，还可以从 C<find-config>
+阶段生成的 C<locatin> 块的匹配信息中进一步证实这一点：
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 89449#0: *1 using configuration "=/foo"
+    [debug] 89449#0: *1 using configuration "=/baz"
+
+我们看到，一共只匹配过 C</foo> 和 C</baz> 这两个 C<location>
+块，因此只发生过一次“内部跳转”。
+
+当然，如果在 C<server> 配置块中直接使用 L<ngx_rewrite/rewrite>
+配置指令对请求 URI 进行改写，则不会涉及“内部跳转”这样的事情，因为此时 URI
+改写发生在 C<server-rewrite> 阶段，反正早于执行 C<location>
+配置块配对工作的 C<find-config> 阶段。比如下面这个例子：
+
+    :nginx
+    server {
+        listen 8080;
+
+        rewrite ^/foo /bar;
+
+        location /foo {
+            echo foo;
+        }
+
+        location /bar {
+            echo bar;
+        }
+    }
+
+这里，我们在 C<server-rewrite> 阶段就把那些 URI 以 C</foo>
+起始的 URI 给改写为了 C</bar>，而此时请求并没有和任何 C<location>
+配置块相关联，所以 Nginx 正常往下运行 C<find-config> 阶段
+，完成最终的 C<location> 匹配。于是，如果我们请求上例中的 C</foo>
+接口，则 C<location /foo> 根本没有机会匹配，因为在第一次（也是
+唯一一次）运行 C<find-config> 阶段时，当前请求的 URI 已经被
+改写为了 C</bar>，从而只会匹配 C<location /bar> 了。实
+际请求的输出正是如此：
+
+    $ curl localhost:8080/foo
+    bar
+
+Nginx “调试日志”可以再一次佐证我们的结论：
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 92693#0: *1 using configuration "/bar"
+
+我们看到，Nginx 总共只进行过一次 C<location> 匹配，并无“内部
+跳转”发生。
 
