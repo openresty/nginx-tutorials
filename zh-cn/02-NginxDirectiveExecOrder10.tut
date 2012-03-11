@@ -1,0 +1,28 @@
+= Nginx 配置指令的执行顺序（十） =
+
+运行在 C<post-read> 阶段之后的是所谓的 C<preaccess> 阶段。该阶段在 C<access> 阶段之前执行，故名 C<preaccess>.
+
+标准模块 L<ngx_limit_req> 就运行在此阶段，我们可以通过它对请求的访问频度进行控制。
+
+TODO
+
+标准模块 L<ngx_limit_zone> 也运行在此阶段，它可以用于请求的并发控制。
+
+TODO
+
+前面反复提到的标准模块 L<ngx_realip> 其实也在这个阶段注册有处理程序。这是为什么呢？它不是已经在第一个处理阶段 C<post-read> 注册了处理程序了吗？我们不妨通过下面这个例子来揭晓答案：
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set_real_ip_from 127.0.0.1;
+            real_ip_header X-Real-IP;
+
+            echo "from: $remote_addr";
+        }
+    }
+
+这里与先看前到的例子相比，最重要的区别在于，此例把 L<ngx_realip> 的配置指令放在了 C<location> 配置块中。回忆
+
