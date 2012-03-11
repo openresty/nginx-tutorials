@@ -102,8 +102,8 @@ C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx
 这里，我们在 C<location /foo> 中连续把当前请求的 URI
 改写了两遍。第一遍先无条件地改写成了 C</bar>，第二遍再无条件地改写成了
 C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
-会最后在 C<find-config> 阶段触发一次“内部跳转”操作，从而不至于
-在第一次改写 URI 时就直接跳离了当前的 C<location> 配置块，而导
+会最后在 C<post-read> 阶段触发一次“内部跳转”操作，从而不至于
+在第一次改写 URI 时就直接跳离了当前的 C<location> 配置块而导
 致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求上
 例中的 C</foo> 接口的结果证实了这一点：
 
