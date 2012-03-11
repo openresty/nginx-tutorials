@@ -1,24 +1,23 @@
 = Nginx 配置指令的执行顺序（八） =
 
-前面介绍了 C<rewrite> 阶段、C<access> 阶段和 C<content>
-阶段
-这三个最为常见的 Nginx 请求处理阶段以及与这些阶段相关联的 Nginx 模
-块及其配置指令。我们已经看到，请求处理阶段的划分直接影响到了配置指令的执行顺序，
+前面我们详细讨论了 C<rewrite>、C<access> 和 C<content>
+这三个最为常见的 Nginx 请求处理阶段，在此过程中，也顺便介绍了运行在这
+三个阶段的众多 Nginx 模块及其配置指令。同时可以看到，请求处理阶段的划分
+直接
+影响到了配置指令的执行顺序，
 熟悉这些阶段对于正确配置不同的 Nginx 模块并实现它们彼此之间的协同工作是非
 常必要的。所以接下来我们接着讨论余下的那些阶段。
 
 前面在 L<ordertut/（一）> 中提到，Nginx 处理请求的过程一共划
-分为 11 个阶段，它们按照执行顺序依次是 C<post-read> 阶段、C<server-write>
-阶段、C<find-config> 阶段、C<rewrite> 阶段、C<post-rewrite>
-阶段、C<preaccess> 阶段、C<access> 阶段、C<post-access>
-阶段、C<try-files> 阶段、C<content> 阶段以及 C<log>
-阶段。
+分为 11 个阶段，按照执行顺序依次是 C<post-read>、C<server-rewrite>、C<find-config>、C<rewrite>、C<post-rewrite>、C<preaccess>、C<access>、C<post-access>、C<try-files>、C<content>
+以及 C<log>.
 
 最先执行的 C<post-read> 阶段在 Nginx 读取并解析完请求头（request
-headers）之后就立即开始运行。标准模块 L<ngx_realip> 就在这
-个阶段注册了处理程序。L<ngx_realip> 模块实现的功能主要是迫使 Nginx
-认为当前请求的来源 IP 地址是指定的某一个请求头的值。下面这个例子就使用了 L<ngx_realip>
-模块提供的 L<ngx_realip/set_real_ip_from> 和 L<ngx_real_ip_header>
+headers）之后就立即开始运行。这个阶段像前面介绍过的 C<rewrite>
+阶段那样支持 Nginx 模块注册处理程序。比如标准模块 L<ngx_realip>
+就在 C<post-read> 阶段注册了处理程序，它的功能是迫使 Nginx
+认为当前请求的来源地址是指定的某一个请求头的值。下面这个例子就使用了 L<ngx_realip>
+模块提供的 L<ngx_realip/set_real_ip_from> 和 L<ngx_realip/real_ip_header>
 这两条配置指令：
 
     :nginx
@@ -34,27 +33,29 @@ headers）之后就立即开始运行。标准模块 L<ngx_realip> 就在这
         }
     }
 
-这里的配置是让 Nginx 把那些来自 C<127.0.0.1> 这个地址的请求
-的来源 IP 地址，都改写为请求头 C<X-My-IP> 所指定的值。同时该例使
-r了标准内建变量 L<ngx_core/$remote_addr> 来
-输出当前请求的来源地址。首先在本地请求一下这个 C</test> 接口：
+这里的配置是让 Nginx 把那些来自 C<127.0.0.1> 的所有请求
+的来源地址，都改写为请求头 C<X-My-IP> 所指定的值。同时该例使
+用了标准内建变量 L<ngx_core/$remote_addr> 来
+输出当前请求的来源地址，以确认是否被成功改写。
+
+首先在本地请求一下这个 C</test> 接口：
 
     :bash
     $ curl -H 'X-My-IP: 1.2.3.4' localhost:8080/test
     from: 1.2.3.4
 
-这里我们使用了 curl 工具的命令行选项 C<-H> 指定了额外的 HTTP
+这里使用了 curl 工具的 C<-H> 选项指定了额外的 HTTP
 请求头 C<X-My-IP: 1.2.3.4>. 从输出可以看到，L<ngx_core/$remote_addr>
-变量的值确实在 C<rewrite> 阶段中就已经成为了 C<X-My-IP>
-请求头中的值，即 C<1.2.3.4>. 那么 Nginx 究竟是在什么时候把当
-前请求的来源地址给改写了呢？答案就是在 C<post-read> 阶段。由于 C<rewrite>
-阶段的运行远在 C<post-read> 阶段之后，所以当我们在 C<location>
+变量的值确实在 C<rewrite> 阶段就已经成为了 C<X-My-IP>
+请求头中指定的值，即 C<1.2.3.4>. 那么 Nginx 究竟是在什么时候
+改写了当
+前请求的来源地址呢？答案是：在 C<post-read> 阶段。由于 C<rewrite>
+阶段的运行远在 C<post-read> 阶段之后，所以当在 C<location>
 配置块中通过 L<ngx_rewrite/set> 配置指令读取 L<ngx_core/$remote_addr>
-内建变量时，读出的来源地址已经是经过 C<post-read> 阶段的 L<ngx_realip>
-模块的处理程序篡改过的。
+内建变量时，读出的来源地址已经是经过 C<post-read> 阶段篡改过的。
 
 如果在请求上例中的 C</test> 接口时没有指定 C<X-My-IP> 请求
-头，或者提供的 C<X-My-IP> 请求头的值不是合法的 IP 地址，则 Nginx
+头，或者提供的 C<X-My-IP> 请求头的值不是合法的 IP 地址，那么 Nginx
 就不会对来源地址进行改写，例如：
 
     :bash
@@ -64,13 +65,14 @@ r了标准内建变量 L<ngx_core/$remote_addr> 来
     $ curl -H 'X-My-IP: abc' localhost:8080/test
     from: 127.0.0.1
 
-如果从另一台机器访问这个 C</test> 接口，即使指定了合法的 C<X-My-IP>
-请求头，也不会触发 Nginx 对来源地址进行改写，因为在上例中，我们已经使用
-L<ngx_realip/set_real_ip_from> 指令规定了只对来自 C<127.0.0.1>
-这个本地 IP 地址的请求生效，从而可以避免来自其他不受信任的地址的恶意欺骗。当
-然，我们也可以在 L<ngx_realip/set_real_ip_from>
+如果从另一台机器访问这个 C</test> 接口，那么即使指定了合法的 C<X-My-IP>
+请求头，也不会触发 Nginx 对来源地址进行改写。这是因为上例已经使用
+L<ngx_realip/set_real_ip_from> 指令规定了来源地址
+的改写操作只对那些来自 C<127.0.0.1> 的请求生效
+。这种过滤机制可以避免来自其他不受信任的地址的恶意欺骗。当
+然，也可以通过 L<ngx_realip/set_real_ip_from>
 指令指定一个 IP 网段（利用 L<ordertut/（三）> 中介绍过的“CIDR
-记法法”）。此外，同时配置多个 L<ngx_realip/set_real_ip_from>
+记法”）。此外，同时配置多个 L<ngx_realip/set_real_ip_from>
 语句也是允许的，这样可以指定多个受信任的来源地址或地址段。下面是一个例子：
 
     :nginx
@@ -78,22 +80,23 @@ L<ngx_realip/set_real_ip_from> 指令规定了只对来自 C<127.0.0.1>
     set_real_ip_from 127.0.0.0/24;
 
 有的读者可能会问，L<ngx_realip> 模块究竟有什么实际用途呢？为什么我
-们需要去改写请求的来源地址呢？答案是：这个模块在 Nginx 本身位于某个 HTTP
-代理服务器之后时会特别有用。当原始的用户请求经过某个 HTTP 代理服务器中转之
+们需要去改写请求的来源地址呢？答案是：当 Nginx 处理的请求经过了某个 HTTP
+代理服务器的转发时，这个模块就变得特别有用。当原始的用户请求经过转发之
 后，Nginx 接收到的请求的来源地址无一例外地变成了该代理服务器的 IP 地址
-，于是 Nginx 以及 Nginx 背后的应用就无法知道原始请求的真实来源地址
+，于是 Nginx 以及 Nginx 背后的应用就无法知道原始请求的真实来源
 。所以，一般我们会在 Nginx 之前的代理服务器中把请求的原始来源地址编码进某
 个特殊的 HTTP 请求头中（例如上例中的 C<X-My-IP> 请求头），然后
-再在 Nginx 一侧把这个请求头中编码的地址给恢复出来。这样 Nginx 中的
-后续处理阶段乃至 Nginx 背后的 FastCGI 等各种后端应用就会以为这些
+再在 Nginx 一侧把这个请求头中编码的地址恢复出来。这样 Nginx 中的
+后续处理阶段（包括 Nginx 背后的各种后端应用）就会认为这些
 请求直接来自那些原始
-的地址，而完全不必知道代理服务器的存在。正是因为这个需求，所以 L<ngx_realip>
-模块才需要在第一个处理阶段，C<post-read> 阶段，注册处理程序，以便尽
-可能早地改写请求的来源地址。
+的地址，代理服务器就仿佛不存在一样。正是因为这个需求，所以 L<ngx_realip>
+模块才需要在第一个处理阶段，即 C<post-read> 阶段，注册处理程序，以
+便尽
+可能早地改写请求的来源。
 
-C<post-read> 阶段之后便是所谓的 C<server-rewrite>
+C<post-read> 阶段之后便是 C<server-rewrite>
 阶段。我们曾在 L<ordertut/（二）> 中简单提到，当 L<ngx_rewrite>
-模块的配置指令直接书写在 server 配置块中时，基本上都是运行在 C<server-write>
+模块的配置指令直接书写在 C<server> 配置块中时，基本上都是运行在 C<server-rewrite>
 阶段。下面就来看这样的一个例子：
 
     :nginx
@@ -108,11 +111,12 @@ C<post-read> 阶段之后便是所谓的 C<server-rewrite>
         set $a hello;
     }
 
-这里，配置语句C<set $a hello> 直接写在了 C<server> 配
-置块中，因此运行在 C<server-rewrite> 阶段。而 C<server-rewrite>
+这里，配置语句 C<set $a hello> 直接写在了 C<server>
+配
+置块中，因此它就运行在 C<server-rewrite> 阶段。而 C<server-rewrite>
 阶段要早于 C<rewrite> 阶段运行，因此写在 C<location> 配
-置块中的 语句 C<set $b "$a, world"> 便总是后于外面的 C<set
-$a hello> 语句运行。该例的运行结果证明了这一点：
+置块中的语句 C<set $b "$a, world"> 便晚于外面的 C<set
+$a hello> 语句运行。该例的测试结果证明了这一点：
 
     :bash
     $ curl localhost:8080/test
@@ -147,5 +151,5 @@ $a hello> 语句运行。该例的运行结果证明了这一点：
 的配置指令之前，但仍然晚于 L<ngx_realip> 模块执行。所以 C<$addr>
 变量在 C<server-rewrite> 阶段被 L<ngx_rewrite/set>
 指令赋值时，从 L<ngx_core/$remote_addr> 变量读出的来源
-地址已经是经过 L<ngx_realip> 模块改写过的。
+地址已经是经过改写过的了。
 

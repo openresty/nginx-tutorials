@@ -18,6 +18,7 @@ my %links = (
         '四' => 'http://blog.sina.com.cn/s/blog_6d579ff40100xyo1.html',
         '五' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y05x.html',
         '六' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y1f1.html',
+        '七' => 'http://blog.sina.com.cn/s/blog_6d579ff40100y8p1.html',
     },
     var => {
         '一' => 'http://blog.sina.com.cn/s/blog_6d579ff40100wi7p.html',
@@ -133,6 +134,9 @@ while (<$in>) {
         } elsif ($n eq 'http_core') {
             "[http://nginx.org/en/docs/http/ngx_http_core_module.html ngx_$n]"
 
+        } elsif ($n eq 'realip') {
+            "[[HttpRealIpModule|ngx_realip]]"
+
         } elsif ($n eq 'auth_request') {
             "[http://mdounin.ru/hg/ngx_http_auth_request_module/ ngx_$n]"
 
@@ -159,6 +163,9 @@ while (<$in>) {
 
         if ($n eq 'auth_request') {
             "<code>$d</code>"
+
+        } elsif ($n eq 'realip') {
+            "[[HttpRealIpModule#$d|$d]]"
 
         } else {
             my @n = map \{ ucfirst \} split /_/, $n;
