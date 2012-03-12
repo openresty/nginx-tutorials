@@ -59,7 +59,7 @@ L<http://github.com/agentzh/nginx-tutorials/>
 和 C<POD> 标记语言的混合物来撰写这些文章，就是那些 F<.tut> 文件
 。欢迎建立分支和提供补丁。
 
-本教程适用于 Kindle、iPad/iPhone、Sony 等电子阅读器的 C<.mobi>、C<.epub>
+本教程适用于普通手机、Kindle、iPad/iPhone、Sony 等电子阅读器的 C<.html>、C<.mobi>、C<.epub>
 以及 C<.pdf> 等格式的电子书文件可以从下面这个位置下载：
 
 L<http://openresty.org/#eBooks>
