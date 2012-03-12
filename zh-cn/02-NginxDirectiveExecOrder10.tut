@@ -65,7 +65,49 @@ C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结
     $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
     from: 127.0.0.1
 
-输出的地址确实是未经过改写的。
+输出的地址确实是未经过改写的。Nginx 的“调试日志”可以进一步确认这一点：
+
+    :bash
+    $ grep -E 'http script (var|set)|realip' logs/error.log
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+    [debug] 32488#0: *1 http script set $addr
+    [debug] 32488#0: *1 realip: "1.2.3.4"
+    [debug] 32488#0: *1 realip: 0100007F FFFFFFFF 0100007F
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+其中第一行调试信息
+
+    :text
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+是 L<ngx_rewrite/set> 语句读取 L<ngx_core/$remote_addr>
+变量时产生的。信息中的字符串 C<"127.0.0.1"> 便是 L<ngx_core/$remote_addr>
+当时读出来的值。
+
+而第二行调试信息
+
+    :text
+    [debug] 32488#0: *1 http script set $addr
+
+指示了我们对变量 C<$addr> 进行了赋值操作。
+
+后面两行信息
+
+    :text
+    [debug] 32488#0: *1 realip: "1.2.3.4"
+    [debug] 32488#0: *1 realip: 0100007F FFFFFFFF 0100007F
+
+是 L<ngx_realip> 模块在 C<preaccess> 阶段改写当前请
+求的来源地址。我们看到，改写后的新地址确实是期望的 C<1.2.3.4>. 但很
+明显这个操作发生在 C<$addr> 变量赋值之后，所以已经太晚了。
+
+而最后一行信息
+
+    :text
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+则是 L<ngx_echo/echo> 配置指令在输出时读取变量 C<$addr>
+时产生的，我们看到它的值已然是改写前的来源地址了。
 
 看到这里，有的读者可能会问：“如果 L<ngx_realip> 模块把注册在 C<preaccess>
 阶段的处理程序改为注册在 C<rewrite> 阶段，上面的例子不就可以工作了？
@@ -76,4 +118,71 @@ C<rewrite> 阶段，而前面我们在 L<ordertut/（二）> 中特
 
 一个建议是：尽量在 C<server> 配置块中配置 L<ngx_realip>
 这样的模块，以避免上面介绍的这种棘手的例外情况。
+
+运行在 C<preaccess> 阶段之后的则是我们的另一个老朋友，C<access>
+阶段。前面我们已经知道了，标准模块 L<ngx_access> 以及第三方模块
+L<ngx_auth_request> 就运行在此阶段。第三方模块 L<ngx_lua>
+的 L<ngx_lua/access_by_lua> 指令也运行在这个阶段，它与
+前面我们在 L<ordertut/（三）> 中介始过的 L<ngx_lua/rewrite_by_lua>
+指令相比，唯一的不同便是运行在 C<access> 阶段，而不是 C<rewrite>
+阶段。
+
+C<access> 阶段之后便是 C<post-access> 阶段。从这个阶段
+的名字，我们也能一眼看出它是紧跟在 C<access> 阶段后面的。这个阶段也和
+C<post-rewrite> 阶段类似，并不支持 Nginx 模块注册处理程
+序，而是由 Nginx 核心自己完成一些工作。C<post-access> 阶段
+主要用于配合 C<access> 阶段实现标准 L<ngx_http_core>
+模块提供的配置指令 L<ngx_core/satisfy> 的功能。
+
+L<ngx_core/satisfy> 配置指令可以用于控制不同的 Nginx
+模块注册在 C<access> 阶段的处理程序彼此协作的方式。比如模块 A 和
+B 都在 C<access> 阶段注册了与访问控制相关的处理程序，那就有两种协作
+方式，一是模块 A 和模块 B 都得通过验证才算通过，二是模块 A 和模块 B
+只要其中任一个通过验证就算通过。第一种协作方式称为 C<all> 方式，第二种方
+式则被称为 C<any> 方式。默认情况下，是 C<all> 方式。下面是一个例
+子：
+
+    :nginx
+    location /test {
+        satisfy all;
+
+        deny all;
+        auth_request /auth;
+
+        echo something important;
+    }
+
+    location /auth {
+        echo OK;
+    }
+
+这里，我们在 C</test> 接口中同时配置了 L<ngx_access> 模
+块和 L<ngx_auth_request> 模块，这样 C<access> 阶
+段就有这两个模块一起来做检验工作。其中，语句 C<deny all> 会让 L<ngx_access>
+模块的处理程序在这里总是会拒绝访问，而语句 C<auth_request /auth>
+则总是允许访问（因为 C</auth> 接口永远返回 C<200> 成功码的响应
+）。当我们通过 L<ngx_http_core/satisfy> 指令配置了 C<all>
+方式时，就需要 C<access> 阶段的所有模块都通过验证，但不幸的是，这里
+L<ngx_access> 模块总是会拒绝访问，所以整个请求就会被拒：
+
+    :bash
+    $ curl localhost:8080/test
+    <html>
+    <head><title>403 Forbidden</title></head>
+    <body bgcolor="white">
+    <center><h1>403 Forbidden</h1></center>
+    <hr><center>nginx</center>
+    </body>
+    </html>
+
+然而，如果我们把上例中的 C<satisfy all> 语句更改为 C<satisfy
+any>，则结果则会完全不同：
+
+    :bash
+    $ curl localhost:8080/test
+    something important
+
+即请求反而最终通过了验证。这是因为在 C<any> 方式下，C<access>
+阶段只要有一个模块通过了验证，就会认为请求整体通过了验证，而在上例中，L<ngx_auth_request>
+模块总是会通过验证的。
 
