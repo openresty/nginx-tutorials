@@ -1,16 +1,15 @@
 = Nginx 配置指令的执行顺序（十） =
 
-运行在 C<post-read> 阶段之后的是所谓的 C<preaccess> 阶段。该阶段在 C<access> 阶段之前执行，故名 C<preaccess>.
+运行在 C<post-read> 阶段之后的是所谓的 C<preaccess>
+阶段。该阶段在 C<access> 阶段之前执行，故名 C<preaccess>.
 
-标准模块 L<ngx_limit_req> 就运行在此阶段，我们可以通过它对请求的访问频度进行控制。
+标准模块 L<ngx_limit_req> 和 L<ngx_limit_zone>
+就运行在此阶段，它们可以分别实现对请求的访问频度和访问并发度的控制。这里我们仅仅
+打个照面，后面还会有机会专门接触到这两个模块。
 
-TODO
-
-标准模块 L<ngx_limit_zone> 也运行在此阶段，它可以用于请求的并发控制。
-
-TODO
-
-前面反复提到的标准模块 L<ngx_realip> 其实也在这个阶段注册有处理程序。这是为什么呢？它不是已经在第一个处理阶段 C<post-read> 注册了处理程序了吗？我们不妨通过下面这个例子来揭晓答案：
+前面反复提到的标准模块 L<ngx_realip> 其实也在这个阶段注册有处理程
+序。有些读者可能会问：“这是为什么呢？它不是已经在第一个处理阶段 C<post-read>
+注册了处理程序了吗？”我们不妨通过下面这个例子来揭晓答案：
 
     :nginx
     server {
@@ -24,5 +23,57 @@ TODO
         }
     }
 
-这里与先看前到的例子相比，最重要的区别在于，此例把 L<ngx_realip> 的配置指令放在了 C<location> 配置块中。回忆
+这里与先看前到的例子相比，最重要的区别在于，此例把 L<ngx_realip>
+的配置指令放在了 C<location> 配置块中。回忆前面我们介绍过 Nginx
+匹配 C<location> 配置块的时间是在 C<find-config> 阶
+段，而 C<find-config> 阶段远远晚于 C<post-read> 阶
+段执行，所以在 C<post-read> 阶段，当前请求还没有和任何 C<location>
+配置块相关联！在这个例子中，因为 L<ngx_realip> 的配置指令都写在了
+C<location> 配置块中，于是在 C<post-read> 阶段，L<ngx_realip>
+模块的处理程序看到没有任何可用的配置信息，便不会执行来源地址的改写工作了。
+
+为了解决这个难题，L<ngx_realip> 模块便又特意在 C<preaccess>
+阶段注册了处理程序，这样它才有机会运行 C<location> 配置块中的配置指
+令。正是因为这个缘故，上面这个例子才能如期望那般工作：
+
+    $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
+    from: 1.2.3.4
+
+不幸的是，L<ngx_realip> 模块的这个解决方案还是存在漏洞的，比如下面
+这个例子：
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set_real_ip_from 127.0.0.1;
+            real_ip_header X-Real-IP;
+
+            set $addr $remote_addr;
+            echo "from: $addr";
+        }
+    }
+
+这里，我们在 C<rewrite> 阶段将 L<ngx_core/$remote_addr>
+的值保存到了用户变量 C<$addr> 中，然后再输出。因为 C<rewrite>
+阶段先于 C<preaccess> 阶段执行，所以在 L<ngx_realip>
+模块还未及在 C<preaccess> 阶段改写来源地址，最初的来源地址就已经在
+C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结论：
+
+    :bash
+    $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
+    from: 127.0.0.1
+
+输出的地址确实是未经过改写的。
+
+看到这里，有的读者可能会问：“如果 L<ngx_realip> 模块把注册在 C<preaccess>
+阶段的处理程序改为注册在 C<rewrite> 阶段，上面的例子不就可以工作了？
+”答案是：不一定。因为 L<ngx_rewrite> 模块的处理程序也同样注册在
+C<rewrite> 阶段，而前面我们在 L<ordertut/（二）> 中特
+别提到，在这种情况下，不同模块之间的执行顺序一般是不确定的，所以 L<ngx_realip>
+的处理程序可能仍然在 L<ngx_rewrite/set> 语句之后执行。
+
+一个建议是：尽量在 C<server> 配置块中配置 L<ngx_realip>
+这样的模块，以避免上面介绍的这种棘手的例外情况。
 
