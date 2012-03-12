@@ -1,14 +1,14 @@
 ver=$(shell date +'%Y.%m.%d')
-name=agentzh-nginx-tutorials-zhcn-$(ver)
+name=agentzh-nginx-tutorials-zhcn
 zhcn_tutfiles=$(sort $(wildcard zh-cn/*.tut))
 zhcn_wikifiles=$(patsubst %.tut,wiki/%.wiki,$(zhcn_tutfiles))
 zhcn_htmlfiles=$(patsubst %.tut,html/%.html,$(zhcn_tutfiles))
 
-.PHONY: all mobi clean epub pdf
+.PHONY: all mobi clean epub pdf html
 
 .PRECIOUS: $(zhcn_wikifiles) $(zhcn_htmlfiles)
 
-all: mobi epub pdf
+all: mobi epub pdf html
 	
 mobi: $(name).mobi
 	
@@ -16,7 +16,9 @@ epub: $(name).epub
 	
 pdf: $(name).pdf
 
-%.pdf: index-zhcn.html
+html: $(name).html
+
+%.pdf: $(name).html
 	ebook-convert $< $@ \
 	    --margin-bottom 30 \
 	    --margin-top 30 \
@@ -28,20 +30,20 @@ pdf: $(name).pdf
 	    --title "agentzh的Nginx教程（$(ver)版）" --publisher 'agentzh' \
 	    --language "cn" --authors 'agentzh'
 
-%.mobi: index-zhcn.html
+%.mobi: $(name).html
 	ebook-convert $< $@ \
 	    --output-profile kindle_dx --no-inline-toc \
 	    --title "agentzh的Nginx教程（$(ver)版）" --publisher '章亦春 (agentzh)' \
 	    --language "cn" --authors '章亦春 (agentzh)'
 
-%.epub: index-zhcn.html
+%.epub: $(name).html
 	ebook-convert $< $@ \
 	    --no-default-epub-cover \
 	    --output-profile kindle_dx \
 	    --title "agentzh的Nginx教程（$(ver)版）" --publisher '章亦春 (agentzh)' \
 	    --language "cn" --authors '章亦春 (agentzh)'
 
-index-zhcn.html: $(zhcn_htmlfiles)
+$(name).html: $(zhcn_htmlfiles)
 	./utils/gen-html-index.pl -v $(ver) -o $@ $^
 
 html/%.html: wiki/%.wiki
