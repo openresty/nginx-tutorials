@@ -1,6 +1,10 @@
 This repository holds the source scripts for my Nginx tutorial series
 published here: http://blog.sina.com.cn/openresty
 
+Pre-generated e-books can be downloaded directly from here:
+
+http://openresty.org/#eBooks
+
 1. install perl 5.8.1+ into your system (usually it is already
    installed on *NIX systems.
 
