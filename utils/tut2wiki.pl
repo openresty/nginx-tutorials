@@ -162,6 +162,10 @@ while (<$in>) {
         my $n = $1;
         my $d = $2;
 
+        if ($n eq 'ngx_http_core') {
+            $n = 'ngx_core';
+        }
+
         if ($n eq 'auth_request') {
             "<code>$d</code>"
 
