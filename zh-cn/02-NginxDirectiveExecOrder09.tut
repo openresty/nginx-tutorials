@@ -76,8 +76,7 @@ C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx
 
 不过这里更有趣的地方是，倒退回 C<find-config> 阶段的动作并不是发
 生在 C<rewrite> 阶段，而是发生在后面的 C<post-rewrite>
-阶段。上例中的 L<ngx_rewrite/rewrite> 指令只是简单地指示
- Nginx 有必要在 C<post-rewrite> 阶段发起
+阶段。上例中的 L<ngx_rewrite/rewrite> 指令只是简单地指示 Nginx 有必要在 C<post-rewrite> 阶段发起
 “内部跳转”。这个设计对于 Nginx 初学者来说，或许显得有些古怪：“为什
 么不直接在 C<ngx_rewrite/rewrite> 指令执行时立即进行跳转
 呢？”答案其实很简单，那就是为了在最初匹配的 C<location> 块中支持多次
