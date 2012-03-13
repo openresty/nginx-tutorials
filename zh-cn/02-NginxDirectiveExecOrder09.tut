@@ -2,11 +2,11 @@
 
 紧接在 C<server-rewrite> 阶段后边的是 C<find-config>
 阶段。这个阶段并不支持 Nginx 模块注册处理程序，而是由 Nginx
-核心来完成 C<location> 配置块与请求 URI 之间的配对工作。换句话
-说，在此阶段之前，请求并没有与任何 C<location> 配置块建立关联。因此
+核心来完成当前请求与 C<location> 配置块之间的配对工作。换句话
+说，在此阶段之前，请求并没有与任何 C<location> 配置块相关联。因此
 ，对于运行在 C<find-config> 阶段之前的 C<post-read>
 和 C<server-rewrite> 阶段来说，只有 C<server> 配置
-块以及更外层作用域的配置指令才会起作用。这就是为什么只有写在 C<server>
+块以及更外层作用域中的配置指令才会起作用。这就是为什么只有写在 C<server>
 配置块中的 L<ngx_rewrite> 模块的指令才会运行在 C<server-rewrite>
 阶段，这也是为什么前面所有例子中的 L<ngx_realip> 模块的指令也都特
 意写在了 C<server> 配置块中，以确保其注册在 C<post-read>
@@ -31,9 +31,10 @@
 
 运行在 C<find-config> 阶段之后的便是我们的老朋友 C<rewrite>
 阶段。由于 Nginx 已经在 C<find-config> 阶段完成了当前请
-求与 C<location> 配置块之间的配对，所以从 C<rewrite> 阶
-段开始，C<location> 配置块中的指令便可以产生作用。前面我们已经知道
-当 L<ngx_rewrite> 模块的指令用于 C<location> 块中时，便是
+求与 C<location> 的配对，所以从 C<rewrite> 阶
+段开始，C<location> 配置块中的指令便可以产生作用。前面已经介绍过，
+当 L<ngx_rewrite> 模块的指令用于 C<location> 块中时
+，便是
 运行在这个 C<rewrite> 阶段。另外，L<ngx_set_misc> 模
 块的指令也是如此，还有 L<ngx_lua> 模块的 L<ngx_lua/set_by_lua>
 指令和 L<ngx_lua/rewrite_by_lua> 指令也不例外。
@@ -41,12 +42,12 @@
 C<rewrite> 阶段再往后便是所谓的 C<post-rewrite> 阶段
 。这个阶段也像 C<find-config> 阶段那样不接受 Nginx 模块注
 册处理程序，而是由 Nginx 核心完成 C<rewrite> 阶段所要求的“内
-部跳转”操作（如果 C<rewrite> 阶段运行的配置指令有此要求的话）。先前
+部跳转”操作（如果 C<rewrite> 阶段有此要求的话）。先前
 在 L<vartut/（二）> 中已经介绍过了“内部跳转”的概念，同时演示了如何
 通过 L<ngx_echo/echo_exec> 指令或者 L<ngx_rewrite/rewrite>
 指令来发起“内部跳转”。由于 L<ngx_echo/echo_exec> 指令运
 行在 C<content> 阶段，与这里讨论的 C<post-rewrite>
-阶段并无关系，我们感兴趣的是运行在 C<rewrite> 阶段的 L<ngx_rewrite/rewrite>
+阶段无关，于是我们感兴趣的便只剩下运行在 C<rewrite> 阶段的 L<ngx_rewrite/rewrite>
 指令。回顾一下 L<vartut/（二）> 中演示过的这个例子：
 
     :nginx
@@ -69,18 +70,20 @@ C<rewrite> 阶段再往后便是所谓的 C<post-rewrite> 阶段
 跳转”的工作原理。“内部跳转”本质上其实就是把当前的请求处理阶段强行倒退到 C<find-config>
 阶段，以便重新进行请求 URI 与 C<location> 配置块的配对。
 比如上例中，运行在 C<rewrite> 阶段的 L<ngx_rewrite/rewrite>
-指令就让当前请求的处理阶段倒退回了 C<find-config> 阶段，重新进行
-C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx_rewrite/rewrite>
+指令就让当前请求的处理阶段倒退回了 C<find-config> 阶段。由于此时
+当前请求的 URI 已经被 L<ngx_rewrite/rewrite>
 指令修改为了 C</bar>，所以这一次换成了 C<location /bar>
-与当前请求相关联，然后接着从 C<rewrite> 阶段继续往下执行。
+与当前请求相关联，然后再接着从 C<rewrite> 阶段往下执行。
 
 不过这里更有趣的地方是，倒退回 C<find-config> 阶段的动作并不是发
 生在 C<rewrite> 阶段，而是发生在后面的 C<post-rewrite>
-阶段。上例中的 L<ngx_rewrite/rewrite> 指令只是简单地指示 Nginx 有必要在 C<post-rewrite> 阶段发起
+阶段。上例中的 L<ngx_rewrite/rewrite> 指令只是简单地指示
+Nginx 有必要在 C<post-rewrite> 阶段发起
 “内部跳转”。这个设计对于 Nginx 初学者来说，或许显得有些古怪：“为什
-么不直接在 C<ngx_rewrite/rewrite> 指令执行时立即进行跳转
-呢？”答案其实很简单，那就是为了在最初匹配的 C<location> 块中支持多次
-反复的 URI 改写，例如：
+么不直接在 L<ngx_rewrite/rewrite> 指令执行时立即进行跳转
+呢？”答案其实很简单，那就是为了在最初匹配的 C<location> 块中支持多
+次
+反复地改写 URI，例如：
 
     :nginx
     location /foo {
@@ -98,13 +101,13 @@ C<location> 配置块的匹配。由于此时当前请求的 URI 已经被 L<ngx
         echo baz;
     }
 
-这里，我们在 C<location /foo> 中连续把当前请求的 URI
-改写了两遍。第一遍先无条件地改写为 C</bar>，第二遍再无条件地改写为
+这里在 C<location /foo> 中连续把当前请求的 URI
+改写了两遍：第一遍先无条件地改写为 C</bar>，第二遍再无条件地改写为
 C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
 会在 C<post-read> 阶段触发一次“内部跳转”操作，从而不至于
-在第一次改写 URI 时就直接跳离了当前的 C<location> 配置块而导
-致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求上
-例中的 C</foo> 接口的结果证实了这一点：
+在第一次改写 URI 时就直接跳离了当前的 C<location> 而导
+致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求
+C</foo> 接口的结果证实了这一点：
 
     :bash
     $ curl localhost:8080/foo
@@ -119,8 +122,8 @@ C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
     [debug] 89449#0: *1 using configuration "/foo"
     [debug] 89449#0: *1 using configuration "/baz"
 
-我们看到，一共只匹配过 C</foo> 和 C</baz> 这两个 C<location>
-块，因此只发生过一次“内部跳转”。
+我们看到，对于该次请求，Nginx 一共只匹配过 C</foo> 和 C</baz>
+这两个 C<location>，从而只发生过一次“内部跳转”。
 
 当然，如果在 C<server> 配置块中直接使用 L<ngx_rewrite/rewrite>
 配置指令对请求 URI 进行改写，则不会涉及“内部跳转”，因为此时 URI
@@ -143,12 +146,13 @@ C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
     }
 
 这里，我们在 C<server-rewrite> 阶段就把那些以 C</foo>
-起始的 URI 给改写为 C</bar>，而此时请求并没有和任何 C<location>
+起始的 URI 改写为 C</bar>，而此时请求并没有和任何 C<location>
 相关联，所以 Nginx 正常往下运行 C<find-config> 阶段
-，完成最终的 C<location> 匹配。于是，如果我们请求上例中的 C</foo>
-接口，则 C<location /foo> 根本没有机会匹配，因为在第一次（也是
-唯一的一次）运行 C<find-config> 阶段时，当前请求的 URI 已经被
-改写为 C</bar>，从而只会匹配 C<location /bar> 了。实
+，完成最终的 C<location> 匹配。如果我们请求上例中的 C</foo>
+接口，那么 C<location /foo> 根本就没有机会匹配，因为在第一次（也是
+唯一的一次）运行 C<find-config> 阶段时，当前请求的 URI 已经
+被
+改写为 C</bar>，从而只会匹配 C<location /bar>. 实
 际请求的输出正是如此：
 
     $ curl localhost:8080/foo
