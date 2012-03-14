@@ -1,6 +1,6 @@
 = Nginx 配置指令的执行顺序（十） =
 
-运行在 C<post-read> 阶段之后的是所谓的 C<preaccess>
+运行在 C<post-rewrite> 阶段之后的是所谓的 C<preaccess>
 阶段。该阶段在 C<access> 阶段之前执行，故名 C<preaccess>.
 
 标准模块 L<ngx_limit_req> 和 L<ngx_limit_zone>

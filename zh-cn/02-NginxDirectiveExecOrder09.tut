@@ -104,7 +104,7 @@ Nginx 有必要在 C<post-rewrite> 阶段发起
 这里在 C<location /foo> 中连续把当前请求的 URI
 改写了两遍：第一遍先无条件地改写为 C</bar>，第二遍再无条件地改写为
 C</baz>. 而这两条 L<ngx_rewrite/rewrite> 语句只
-会在 C<post-read> 阶段触发一次“内部跳转”操作，从而不至于
+会最终导致 C<post-rewrite> 阶段发生一次“内部跳转”操作，从而不至于
 在第一次改写 URI 时就直接跳离了当前的 C<location> 而导
 致后面的 L<ngx_rewrite/rewrite> 语句没有机会执行。请求
 C</foo> 接口的结果证实了这一点：
@@ -149,7 +149,8 @@ C</foo> 接口的结果证实了这一点：
 起始的 URI 改写为 C</bar>，而此时请求并没有和任何 C<location>
 相关联，所以 Nginx 正常往下运行 C<find-config> 阶段
 ，完成最终的 C<location> 匹配。如果我们请求上例中的 C</foo>
-接口，那么 C<location /foo> 根本就没有机会匹配，因为在第一次（也是
+接口，那么 C<location /foo> 根本就没有机会匹配，因为在第一次（也
+是
 唯一的一次）运行 C<find-config> 阶段时，当前请求的 URI 已经
 被
 改写为 C</bar>，从而只会匹配 C<location /bar>. 实
