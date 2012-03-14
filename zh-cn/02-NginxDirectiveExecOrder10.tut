@@ -152,6 +152,7 @@ B 都在 C<access> 阶段注册了与访问控制相关的处理程序，那就�
     }
 
     location /auth {
+        internal;
         echo OK;
     }
 
