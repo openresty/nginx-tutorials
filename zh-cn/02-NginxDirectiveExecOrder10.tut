@@ -120,12 +120,9 @@ C<rewrite> 阶段，而前面我们在 L<ordertut/（二）> 中特
 这样的模块，以避免上面介绍的这种棘手的例外情况。
 
 运行在 C<preaccess> 阶段之后的则是我们的另一个老朋友，C<access>
-阶段。前面我们已经知道了，标准模块 L<ngx_access> 以及第三方模块
-L<ngx_auth_request> 就运行在此阶段。第三方模块 L<ngx_lua>
-的 L<ngx_lua/access_by_lua> 指令也运行在这个阶段，它与
-前面我们在 L<ordertut/（三）> 中介始过的 L<ngx_lua/rewrite_by_lua>
-指令相比，唯一的不同便是运行在 C<access> 阶段，而不是 C<rewrite>
-阶段。
+阶段。前面我们已经知道了，标准模块 L<ngx_access>、第三方模块
+L<ngx_auth_request> 以及第三方模块 L<ngx_lua>
+的 L<ngx_lua/access_by_lua> 指令就运行在这个阶段。
 
 C<access> 阶段之后便是 C<post-access> 阶段。从这个阶段
 的名字，我们也能一眼看出它是紧跟在 C<access> 阶段后面的。这个阶段也和
@@ -176,6 +173,10 @@ L<ngx_access> 模块总是会拒绝访问，所以整个请求就会被拒：
     <hr><center>nginx</center>
     </body>
     </html>
+
+细心的读者会在 Nginx 错误日志文件中看到类似下面这一行的出错信息：
+
+    [error] 6549\#0: *1 access forbidden by rule
 
 然而，如果我们把上例中的 C<satisfy all> 语句更改为 C<satisfy
 any>，则结果则会完全不同：
