@@ -155,7 +155,8 @@ B 都在 C<access> 阶段注册了与访问控制相关的处理程序，那就�
 块和 L<ngx_lua> 模块，这样 C<access> 阶
 段就有这两个模块一起来做检验工作。其中，语句 C<deny all> 会让 L<ngx_access>
 模块的处理程序在这里总是会拒绝访问，而语句 C<access_by_lua 'ngx.exit(ngx.OK)'>
-则总是允许访问。当我们通过 L<ngx_core/satisfy> 指令配置了 C<all>
+则总是允许访问。当我们通过 L<ngx_core/satisfy> 指令配置了
+C<all>
 方式时，就需要 C<access> 阶段的所有模块都通过验证，但不幸的是，这里
 L<ngx_access> 模块总是会拒绝访问，所以整个请求就会被拒：
 
@@ -183,4 +184,8 @@ any>，则结果则会完全不同：
 即请求反而最终通过了验证。这是因为在 C<any> 方式下，C<access>
 阶段只要有一个模块通过了验证，就会认为请求整体通过了验证，而在上例中，L<ngx_lua>
 模块的 L<ngx_lua/access_by_lua> 语句总是会通过验证的。
+
+值得一提的是，上面的例子的正确运行需要 L<ngx_lua> 0.5.0rc19
+或以上版本；之前的版本是不能和 C<satisfy any> 配置语句一起工作的
+。
 
