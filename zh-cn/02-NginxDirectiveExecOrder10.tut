@@ -4,12 +4,14 @@
 阶段。该阶段在 C<access> 阶段之前执行，故名 C<preaccess>.
 
 标准模块 L<ngx_limit_req> 和 L<ngx_limit_zone>
-就运行在此阶段，它们可以分别实现对请求的访问频度和访问并发度的控制。这里我们仅仅
-打个照面，后面还会有机会专门接触到这两个模块。
+就运行在此阶段，前者可以控制请求的访问频度，而后者可以限制访问的并发度。这里我
+们仅仅
+和它们打个照面，后面还会有机会专门接触到这两个模块。
 
-前面反复提到的标准模块 L<ngx_realip> 其实也在这个阶段注册有处理程
-序。有些读者可能会问：“这是为什么呢？它不是已经在第一个处理阶段 C<post-read>
-注册了处理程序了吗？”我们不妨通过下面这个例子来揭晓答案：
+前面反复提到的标准模块 L<ngx_realip> 其实也在这个阶段注册了处理程
+序。有些读者可能会问：“这是为什么呢？它不是已经在 C<post-read> 阶
+段
+注册处理程序了吗？”我们不妨通过下面这个例子来揭晓答案：
 
     :nginx
     server {
@@ -23,18 +25,18 @@
         }
     }
 
-这里与先看前到的例子相比，最重要的区别在于，此例把 L<ngx_realip>
-的配置指令放在了 C<location> 配置块中。回忆前面我们介绍过 Nginx
-匹配 C<location> 配置块的时间是在 C<find-config> 阶
+与先看前到的例子相比，此例最重要的区别在于把 L<ngx_realip>
+的配置指令放在了 C<location> 配置块中。前面我们介绍过，Nginx
+匹配 C<location> 的动作发生在 C<find-config> 阶
 段，而 C<find-config> 阶段远远晚于 C<post-read> 阶
 段执行，所以在 C<post-read> 阶段，当前请求还没有和任何 C<location>
-配置块相关联！在这个例子中，因为 L<ngx_realip> 的配置指令都写在了
-C<location> 配置块中，于是在 C<post-read> 阶段，L<ngx_realip>
-模块的处理程序看到没有任何可用的配置信息，便不会执行来源地址的改写工作了。
+相关联。在这个例子中，因为 L<ngx_realip> 的配置指令都写在了
+C<location> 配置块中，所以在 C<post-read> 阶段，L<ngx_realip>
+模块的处理程序没有看到任何可用的配置信息，便不会执行来源地址的改写工作了。
 
 为了解决这个难题，L<ngx_realip> 模块便又特意在 C<preaccess>
-阶段注册了处理程序，这样它才有机会运行 C<location> 配置块中的配置指
-令。正是因为这个缘故，上面这个例子才能如期望那般工作：
+阶段注册了处理程序，这样它才有机会运行 C<location> 块中的配置指
+令。正是因为这个缘故，上面这个例子的运行结果才符合直觉预期：
 
     $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
     from: 1.2.3.4
@@ -57,15 +59,15 @@ C<location> 配置块中，于是在 C<post-read> 阶段，L<ngx_realip>
 
 这里，我们在 C<rewrite> 阶段将 L<ngx_core/$remote_addr>
 的值保存到了用户变量 C<$addr> 中，然后再输出。因为 C<rewrite>
-阶段先于 C<preaccess> 阶段执行，所以在 L<ngx_realip>
-模块还未及在 C<preaccess> 阶段改写来源地址，最初的来源地址就已经在
+阶段先于 C<preaccess> 阶段执行，所以当 L<ngx_realip>
+模块尚未在 C<preaccess> 阶段改写来源地址时，最初的来源地址就已经在
 C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结论：
 
     :bash
     $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
     from: 127.0.0.1
 
-输出的地址确实是未经过改写的。Nginx 的“调试日志”可以进一步确认这一点：
+输出的地址确实是未经改写过的。Nginx 的“调试日志”可以进一步确认这一点：
 
     :bash
     $ grep -E 'http script (var|set)|realip' logs/error.log
@@ -89,7 +91,7 @@ C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结
     :text
     [debug] 32488#0: *1 http script set $addr
 
-指示了我们对变量 C<$addr> 进行了赋值操作。
+则显示我们对变量 C<$addr> 进行了赋值操作。
 
 后面两行信息
 
@@ -99,7 +101,7 @@ C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结
 
 是 L<ngx_realip> 模块在 C<preaccess> 阶段改写当前请
 求的来源地址。我们看到，改写后的新地址确实是期望的 C<1.2.3.4>. 但很
-明显这个操作发生在 C<$addr> 变量赋值之后，所以已经太晚了。
+明显这个操作发生在 C<$addr> 变量赋值之后，所以已经太迟了。
 
 而最后一行信息
 
@@ -107,10 +109,10 @@ C<rewrite> 阶段被读取了。上例的实际请求结果证明了我们的结
     [debug] 32488#0: *1 http script var: "127.0.0.1"
 
 则是 L<ngx_echo/echo> 配置指令在输出时读取变量 C<$addr>
-时产生的，我们看到它的值已然是改写前的来源地址了。
+时产生的，我们看到它的值是改写前的来源地址。
 
-看到这里，有的读者可能会问：“如果 L<ngx_realip> 模块把注册在 C<preaccess>
-阶段的处理程序改为注册在 C<rewrite> 阶段，上面的例子不就可以工作了？
+看到这里，有的读者可能会问：“如果 L<ngx_realip> 模块不在 C<preaccess>
+阶段注册处理程序，而在 C<rewrite> 阶段注册，那么上例不就可以工作了？
 ”答案是：不一定。因为 L<ngx_rewrite> 模块的处理程序也同样注册在
 C<rewrite> 阶段，而前面我们在 L<ordertut/（二）> 中特
 别提到，在这种情况下，不同模块之间的执行顺序一般是不确定的，所以 L<ngx_realip>
@@ -125,19 +127,22 @@ L<ngx_auth_request> 以及第三方模块 L<ngx_lua>
 的 L<ngx_lua/access_by_lua> 指令就运行在这个阶段。
 
 C<access> 阶段之后便是 C<post-access> 阶段。从这个阶段
-的名字，我们也能一眼看出它是紧跟在 C<access> 阶段后面的。这个阶段也和
+的名字，我们也能一眼看出它是紧跟在 C<access> 阶段后面执行的。这个阶段
+也和
 C<post-rewrite> 阶段类似，并不支持 Nginx 模块注册处理程
-序，而是由 Nginx 核心自己完成一些工作。C<post-access> 阶段
+序，而是由 Nginx 核心自己完成一些处理工作。C<post-access>
+阶段
 主要用于配合 C<access> 阶段实现标准 L<ngx_http_core>
 模块提供的配置指令 L<ngx_core/satisfy> 的功能。
 
-L<ngx_core/satisfy> 配置指令可以用于控制不同的 Nginx
-模块注册在 C<access> 阶段的处理程序彼此协作的方式。比如模块 A 和
+对于多个 Nginx 模块注册在 C<access> 阶段的处理程序，L<ngx_core/satisfy>
+配置指令可以用于控制它们彼此之间的协作方式。比如模块 A 和
 B 都在 C<access> 阶段注册了与访问控制相关的处理程序，那就有两种协作
 方式，一是模块 A 和模块 B 都得通过验证才算通过，二是模块 A 和模块 B
 只要其中任一个通过验证就算通过。第一种协作方式称为 C<all> 方式（或者说“
-与关系”，第二种方
-式则被称为 C<any> 方式（或者说“或关系”）。默认情况下，是 C<all>
+与关系”），第二种方
+式则被称为 C<any> 方式（或者说“或关系”）。默认情况下，Nginx 使用
+的是 C<all>
 方式。下面是一个例
 子：
 
@@ -153,8 +158,8 @@ B 都在 C<access> 阶段注册了与访问控制相关的处理程序，那就�
 
 这里，我们在 C</test> 接口中同时配置了 L<ngx_access> 模
 块和 L<ngx_lua> 模块，这样 C<access> 阶
-段就有这两个模块一起来做检验工作。其中，语句 C<deny all> 会让 L<ngx_access>
-模块的处理程序在这里总是会拒绝访问，而语句 C<access_by_lua 'ngx.exit(ngx.OK)'>
+段就由这两个模块一起来做检验工作。其中，语句 C<deny all> 会让 L<ngx_access>
+模块的处理程序总是拒绝当前请求，而语句 C<access_by_lua 'ngx.exit(ngx.OK)'>
 则总是允许访问。当我们通过 L<ngx_core/satisfy> 指令配置了
 C<all>
 方式时，就需要 C<access> 阶段的所有模块都通过验证，但不幸的是，这里
@@ -187,7 +192,7 @@ any>，
         echo something important;
     }
 
-则结果则会完全不同：
+结果则会完全不同：
 
     :bash
     $ curl localhost:8080/test
@@ -197,7 +202,25 @@ any>，
 阶段只要有一个模块通过了验证，就会认为请求整体通过了验证，而在上例中，L<ngx_lua>
 模块的 L<ngx_lua/access_by_lua> 语句总是会通过验证的。
 
-值得一提的是，上面的例子的正确运行需要 L<ngx_lua> 0.5.0rc19
+在配置了 C<satisfy any> 的情况下，只有当 C<access> 阶
+段
+的所有模块的处理程序都拒绝访问时，整个请求才会被拒，例如：
+
+    :nginx
+    location /test {
+        satisfy any;
+
+        deny all;
+        access_by_lua 'ngx.exit(ngx.HTTP_FORBIDDEN)';
+
+        echo something important;
+    }
+
+此时访问 C</test> 接口才会得到 C<403 Forbidden> 错误
+页。这里，C<post-access> 阶段参与了 C<access> 阶段各模
+块处理程序的“或关系”的实现。
+
+值得一提的是，上面这几个的例子需要 L<ngx_lua> 0.5.0rc19
 或以上版本；之前的版本是不能和 C<satisfy any> 配置语句一起工作的
 。
 
