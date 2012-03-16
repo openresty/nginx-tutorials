@@ -175,7 +175,19 @@ L<ngx_access> 模块总是会拒绝访问，所以整个请求就会被拒：
     [error] 6549\#0: *1 access forbidden by rule
 
 然而，如果我们把上例中的 C<satisfy all> 语句更改为 C<satisfy
-any>，则结果则会完全不同：
+any>，
+
+    :nginx
+    location /test {
+        satisfy any;
+
+        deny all;
+        access_by_lua 'ngx.exit(ngx.OK)';
+
+        echo something important;
+    }
+
+则结果则会完全不同：
 
     :bash
     $ curl localhost:8080/test
