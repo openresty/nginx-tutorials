@@ -177,7 +177,8 @@ L<ngx_access> 模块总是会拒绝访问，所以整个请求就会被拒：
 
 细心的读者会在 Nginx 错误日志文件中看到类似下面这一行的出错信息：
 
-    [error] 6549\#0: *1 access forbidden by rule
+    :text
+    [error] 6549#0: *1 access forbidden by rule
 
 然而，如果我们把上例中的 C<satisfy all> 语句更改为 C<satisfy
 any>，
