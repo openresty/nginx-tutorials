@@ -1,0 +1,165 @@
+= Nginx directive execution order (08) =
+
+So far we have addressed in detail C<rewrite>,
+C<access> and C<content>, which are also the most
+frequently encountered phases in Nginx request processing.
+We have learnt many Nginx modules and their commands that
+execute in those phases, and it's clear to us that the
+commands' execution order is directly decided by the phase
+they are running in. Understanding the phase is our keynote
+for correct configuration which orchestrates various Nginx
+modules. Therefore let's cover the rest phases we've not met.
+
+As mentioned in L<ordertut/ (01)>, altogether there can be 11
+phases when Nginx handles a request. In their execution order
+the phases are C<post-read>, C<server-rewrite>, C<find-config>,
+C<rewrite>, C<post-rewrite>, C<preaccess>, C<access>,
+C<post-access>, C<try-files>, C<content>, and finally C<log>.
+
+Phase C<post-read> is the very first, commands registered in
+this phase execute right after Nginx has processed the request
+headers. Similar to phase C<rewrite> we've learnt earlier,
+C<post-read> supports hooks by Nginx modules. Built-in module
+L<ngx_realip> is an example, it hooks its handler in C<post-read>
+phase, and forcefully rewrite the request's original address
+as the value of a specific request header. The following case
+illustrates L<ngx_realip> module and its commands
+L<ngx_realip/set_real_ip_from>, L<ngx_realip/real_ip_header>.
+
+    :nginx
+    server {
+        listen 8080;
+
+        set_real_ip_from 127.0.0.1;
+        real_ip_header   X-My-IP;
+
+        location /test {
+            set $addr $remote_addr;
+            echo "from: $addr";
+        }
+    }
+
+The configuration tells Nginx to forcefully rewrite
+the original address of every request coming from C<127.0.0.1>
+to be the value of the request header C<X-My-IP>. Meanwhile
+it uses the built-in variable L<ngx_core/$remote_addr> to output
+the request's original address, so that we know if the
+rewrite is successful.
+
+First we send a request to C</test> from localhost:
+
+    :bash
+    $ curl -H 'X-My-IP: 1.2.3.4' localhost:8080/test
+    from: 1.2.3.4
+
+The test utilizes C<-H> option provided by curl, the option
+incorporates an extra HTTP header C<X-My-IP: 1.2.3.4> in the
+request. As we can tell, variable L<ngx_core/$remote_addr>
+has become C<1.2.3.4> in C<rewrite> phase, the value comes
+from the request header C<X-My-IP>. So when does Nginx rewrite
+the request's original address ? yes it's in the C<post-read>
+phase. Since phase C<rewrite> is far behind phase C<post-read>,
+when command L<ngx_rewrite/set> reads variable
+L<ngx_core/$remote_addr>, its value has already been rewritten
+in C<post-read> phase.
+
+If however, the request sent from localhost to C</test> does not
+have a C<X-My-IP> header or the header value is an invalid IP address,
+Nginx will not modify the original address. For example:
+
+    :bash
+    $ curl localhost:8080/test
+    from: 127.0.0.1
+
+    $ curl -H 'X-My-IP: abc' localhost:8080/test
+    from: 127.0.0.1
+
+If a request is sent from another machine to C</test>, it original
+address won't be overwritten by Nginx either, even if it has a perfect
+C<X-My-IP> header. It is because our previous case marks explicitly
+with command L<ngx_realip/set_real_ip_from>, that the rewriting only
+occurs for the requests coming from C<127.0.0.1>. This filtering
+mechanism protect Nginx from malicious requests sent by untrusted sources.
+As you might have expected, command L<ngx_realip/set_real_ip_from> can
+designate a IP subnet (by using CIDR notation introduced earlier in
+L<ordertut/ (03)>). Besides, command L<ngx_realip/set_real_ip_from> can
+be used multiple times so that we can setup multiple trusted sources,
+below is an example:
+
+    :nginx
+    set_real_ip_from 10.32.10.5;
+    set_real_ip_from 127.0.0.0/24;
+
+You might be asking, what's the benefit module L<ngx_realip> brings to
+us?
+Why would we rewrite a request's original address ? The answer is: when
+the request has come through one or more HTTP proxies, the module becomes
+very handy. When a request is forwarded by a proxy, its original address
+will become the proxy server's IP address, consequently Nginx and the services
+running on it will no longer have the actual source. However, we could
+let proxy server record the original address in a specific header (such
+as
+C<X-My-IP>) and recover it in Nginx, so that its subsequent processing
+(and
+the services running on Nginx) will take the request as if it comes right
+from its original address and the proxies in between are transparent. For
+this exact purpose, module L<ngx_realip> needs hook handlers in the first
+phase, the C<post-read> phase, so the rewriting occurs as early as possible.
+
+Behind C<post-phase> is the C<server-rewrite> phase. We briefly mentioned
+in L<ordertut/ (02)>, when module L<ngx_rewrite> and its commands are configured
+in C<server> directive, they basically execute in C<server-rewrite> phase.
+We have an example below:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set $b "$a, world";
+            echo $b;
+        }
+
+        set $a hello;
+    }
+
+Attention the C<set $a hello> statement is put in C<server>
+directive, so it runs in C<server-rewrite> phase, which runs
+earlier than C<rewrite> phase. Therefore statement
+C<set $b "$a, world'"> in C<location> directive is executed
+afterwards and it obtains the correct $a value:
+
+    :bash
+    $ curl localhost:8080/test
+    hello, world
+
+Since phase C<server-rewrite> executes later than
+C<post-read> phase, command L<ngx_rewrite/set> in C<server>
+directive always runs later than module L<ngx_realip>,
+which rewrites the request's original address, example:
+
+    :nginx
+    server {
+        listen 8080;
+
+        set $addr $remote_addr;
+
+        set_real_ip_from 127.0.0.1;
+        real_ip_header   X-Real-IP;
+
+        location /test {
+            echo "from: $addr";
+        }
+    }
+
+Send request to C</test> we have:
+
+    :bash
+    $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
+    from: 1.2.3.4
+
+Again, command L<ngx_rewrite/set> is written in front of
+commands of L<ngx_realip>, its actual execution is only
+afterwards. So when command L<ngx_rewrite/set> assigns
+variable C<$addr> in C<server-rewrite> phase, the variable
+L<ngx_core/$remote_addr> has been overwritten.
