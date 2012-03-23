@@ -105,7 +105,7 @@ offers the caliber to stuff in any potentially mind twisted Lua code.
 
 After phase C<rewrite>, Nginx has another phase called C<access>.
 The commands provided by 3rd party module L<ngx_auth_request>, which is
-discussed in L<vartut/Nginx Varaibles (05)>, execute in phase C<access>.
+discussed in L<vartut/Nginx Variables (05)>, execute in phase C<access>.
 Commands registered in C<access> phase mostly carry out ACL functionalities,
 such as guarding user clearance, checking user origins, examining source
 IP validity etc.

@@ -178,7 +178,7 @@ are
 called "indexed" in Nginx core. Otherwise they are called "non-indexed"
 .
 
-As we learnt from L<vartut/ (02)>, the variable category like L<$arg_XXX>
+As we learnt from L<vartut/(02)>, the variable category like L<$arg_XXX>
 are non-indexed,
 the read and write of those variables are executed through "set/get handlers"
 , i.e. by calculating

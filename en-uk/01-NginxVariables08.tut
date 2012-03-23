@@ -163,7 +163,7 @@ cornerstone elements which bridge every other Nginx modules. Nginx variables
 are everywhere
 in the coming tutorials, understand them is absolutely necessary.
 
-In the coming tutorial L<Nginx command execution ordering>, we will be
+In the coming tutorial "L<Nginx Directive Execution Order>", we will be
 discussing in detail
 the Nginx execution ordering and the phases every request traverses. It'
 s indispensable to

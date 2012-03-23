@@ -141,7 +141,7 @@ and remove its timestamp etc) :
 
 It barely makes any senses, does it? So let me interpret. Command
 L<ngx_rewrite/set> dumps two lines of debug info which start with
-C<http script>, the first line tells the value which command L<ngex_rewrite/set>
+C<http script>, the first line tells the value which command L<ngx_rewrite/set>
 has possessed, and the second line being the variable name it
 will be given to, so for the leading filtered log:
 
@@ -234,7 +234,7 @@ a module which misses the applicable phase in the document, you can write
 to its authors right away and ask for it. However, we shall be reminded,
 not every command has an applicable phase. Examples are command L<ngx_geo/geo>
 introduced in L<vartut/Nginx Variables (01)> and command L<ngx_map/map>
-introduced in L<vartut/Nginx Variables (04>. These commands, who have no
+introduced in L<vartut/Nginx Variables (04)>. These commands, who have no
 explicit applicable phase, are declarative and unrelated to the conception
 of
 execution ordering. Igor Sysoev, the author of Nginx, has made the statements
