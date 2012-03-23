@@ -70,7 +70,12 @@ while (<$in>) {
             $html .= "<ul>\n";
         }
 
-        $html .= "<li>" . fmt_para($txt, $ctx) . "</li>\n";
+        my $item = fmt_para($txt, $ctx);
+        if ($item =~ m{^<p>(.*)</p>$}) {
+            $item = $1;
+        }
+
+        $html .= "<li>$item</li>\n";
 
     } elsif (/^\S/) {
         if ($ctx->{list}) {
