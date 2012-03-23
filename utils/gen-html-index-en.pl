@@ -42,7 +42,7 @@ for my $infile (@ARGV) {
 _EOC_
         } elsif ($n eq '02') {
         $res .= <<_EOC_;
-    <li><a href="#$base">Nginx 教程的连载计划</a></li>
+    <li><a href="#$base">Writing Plan for the Tutorials</a></li>
 _EOC_
         } else {
             die "unknown infile: $infile";

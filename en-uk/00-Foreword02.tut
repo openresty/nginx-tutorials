@@ -1,0 +1,32 @@
+= Writing Plan for the Tutorials =
+
+Here lists the tutorial series that have already been published or to
+be published.
+
+* Getting Started with Nginx
+* How Nginx Matches URIs
+* L<Nginx Variables>
+* L<Nginx Directive Execution Order>
+* Nginx's if is Evil
+* Nginx Subrequests
+* Nginx Static File Services
+* Nginx Log Services
+* Application Gateways based on Nginx
+* Reverse-Proxies based on Nginx
+* Nginx and Memcached
+* Nginx and Redis
+* Nginx and MySQL
+* Nginx and PostgreSQL
+* Application caching Based on Nginx
+* Security and Access Control in Nginx
+* Web Services Based on Nginx
+* AJAX Applications Driven by Nginx
+* Performance Testing for Nginx and its Applications
+* Strength of the Nginx Community
+
+The series names can roughly correspond to the chapter names in my final
+Nginx book, but they are unlikely to stay exactly the same. The actual series
+names may change and the relative order of the series may change as well.
+
+The list above will be constantly updated to always reflect the latest plan.
+

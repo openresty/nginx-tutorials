@@ -1,0 +1,89 @@
+= Foreword =
+
+I've been doing a lot of work in the Nginx world over the last few years
+and I've also been thinking about writing series of tutorial-like articles
+to
+explain to more people what I've done and what I've learned in
+this area. Now I have finally decided to post serial tutorials to the
+Sina Blog L<http://blog.sina.com.cn/openresty> in Chinese. Every article
+will have one rough topic and will be in a rather casual style. They're
+not parts of a book after all. But I do have plans to re-orginaize these
+stuffs to form a real book.
+
+Now the tutorials being written is devided into "series". For example,
+the first series is "Nginx Variables". Each series can be roughly mapped
+to a chapter in the Nginx book that I may publish in the future (of course,
+I will also reorganize the contents to form "sections"). The tutorials
+are
+intended for Nginx users at various levels, including those Apache and
+Lighttpd
+users who have never used Nginx before.
+
+The samples in my tutorials are at least compatible with Nginx C<0.8.54>;
+do not try the samples with older versions of Nginx. The latest stable
+version as of this writing is C<1.
+0.10> after all.
+
+All of the Nginx modules mentioned in these tutorials are production-ready.
+I will not even mention those standard Nginx modules that are either experimental
+or buggy.
+
+I'm going to make extensive use of Nginx 3rd-party modules here. If you'
+re too
+lazy to download and install those modules one by one, then you are recommended
+to download and install the C<ngx_openresty> software bundle that is maintained
+by me.
+
+L<http://openresty.org/|http://openresty.org/>
+
+All of the modules mentioned in these tutorials, including the Nginx stable
+core that is fresh enough, have included in this bundle.
+
+One principle that I've been trying to follow in these tutorials is to
+use small and concise configure examples to validate the concepts and principles
+that are being explained. I hope this can help the reader to build the
+good habit of not accepting others' viewpoints or statements without testing
+them. This style may have something to do with my QA background. In fact,
+I keep adjusting and correcting my words according to the running results
+of my little samples in the process of writing.
+
+For problematic code samples, we will intentionally make them look different
+from those good samples, that is, all the lines of the bad samples will
+be prefixed with a question mark, i.e., "C<?>". Here is an example:
+
+    :nginx
+    ? server {
+    ?     listen 8080;
+    ?
+    ?     location /bad {
+    ?         echo $foo;
+    ?     }
+    ? }
+
+Do not reproduce these articles without explicit permissions from us. Copyright
+reserved.
+
+I welcome the readers to send feedback to me (C<agentzh@gmail.com>), especially constructive critisms.
+
+The source for all the articles has been put onto the GitHub web site
+and is under version control:
+
+L<http://github.com/agentzh/nginx-tutorials/>
+
+The source files are under the F<en-uk/> directory. I am using a little
+markup language that is a mixture of C<Wiki> and C<POD> to write these
+articles.
+They are just those F<.tut> files. You are very welcome to create forks
+and/or provide patches.
+
+The e-books files that are suitable for cellphones, Kindle,
+iPad/iPhone, Sony Readers, and other devices, can be downloaded from here:
+
+L<http://openresty.org/#eBooks>
+
+Special thanks go to Kai Wu (kai10k) who kindly translates these tutorials to English.
+
+agentzh at home in the Fuzhou city
+
+October 30, 2011
+
