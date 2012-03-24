@@ -21,7 +21,7 @@ my @nums = qw(
 my @infiles = @ARGV;
 
 my $res = <<_EOC_;
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh" lang="zh">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
     <head>
         <title>agentzh's Nginx Tutorials (version $ver)</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
