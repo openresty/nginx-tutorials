@@ -45,7 +45,7 @@ becoming effective. As illustrated earlier, commands of
 module L<ngx_rewrite> are executed in C<rewrite> phase
 when they are written in C<location> directives. Likewise,
 commands of module L<ngx_set_misc> and module L<ngx_lua>
-(L<ngx_lua/set_by_lua> and L<ngx_lua/rewrite_by_lua) are
+(L<ngx_lua/set_by_lua> and L<ngx_lua/rewrite_by_lua>) are
 also executed in phase C<rewrite>.
 
 After C<rewrite>, it is the C<post-rewrite> phase. Just
@@ -59,7 +59,7 @@ command L<ngx_rewrite/rewrite>. However, let's focus on
 command L<ngx_rewrite/rewrite> for the moment since command
 L<ngx_echo/echo_exec> is executed in C<content> phase and
 becomes irrelevant to C<post-rewrite>, the former draws greater
-interest because it executes in L<rewrite> phase. Back to
+interest because it executes in C<rewrite> phase. Back to
 our example in L<vartut/(02)>:
 
     :nginx
