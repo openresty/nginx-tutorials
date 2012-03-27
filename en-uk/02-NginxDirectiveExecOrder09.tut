@@ -1,0 +1,191 @@
+= Nginx directive execution order (09) =
+
+Right after C<server-rewrite> is the phase C<find-config>.
+This phase does not allow Nginx modules to register their
+handlers, instead it is a phase when Nginx core matches
+the current request to the C<location> directives. It means
+a request is not catered by any C<location> directive until
+it reaches C<find-config>. Apparently, for phases like
+C<post-read> and C<server-rewrite>, the effective commands
+are those which get specified only in C<server> directives
+and their outer directives, because the two phases are
+executed earlier than C<find-config>. This explains that
+commands of module L<ngx_rewrite> are executed in phase
+C<server-rewrite> only if they are written within C<sever>
+directive. Similarly, the former examples configure the
+commands of module L<ngx_realip> in C<server> directive
+to make sure the handlers registered in C<post-read> phase
+could function correctly.
+
+As soon as Nginx matches a C<location> directive in the
+C<find-config> phase, it prints a debug log in the error
+log file. Let's check following example:
+
+    :nginx
+    location /hello {
+        echo "hello world";
+    }
+
+If Nginx enables the "debug log", a debug log can be
+captured in file F<error.log> whenever interface C</hello>
+is requested.
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 84579#0: *1 using configuration "/hello"
+
+For the purpose of convenience, the log's time stamp has been
+omitted.
+
+After phase C<find-config>, it is our old buddy C<rewrite>.
+Since Nginx already matches the request to a specific
+C<location> directive, starting from this phase,
+commands written within C<location> directives are
+becoming effective. As illustrated earlier, commands of
+module L<ngx_rewrite> are executed in C<rewrite> phase
+when they are written in C<location> directives. Likewise,
+commands of module L<ngx_set_misc> and module L<ngx_lua>
+(L<ngx_lua/set_by_lua> and L<ngx_lua/rewrite_by_lua) are
+also executed in phase C<rewrite>.
+
+After C<rewrite>, it is the C<post-rewrite> phase. Just
+like C<find-config>, this phase does not allow Nginx modules
+to register their handlers either, instead it carries out
+the needed "internal jumps" by Nginx core (if this has been
+requested in C<rewrite> phase). We have addressed the "internal
+jump" concept in L<vartut/(02)>, and demonstrated how to issue
+the "internal jump" with command L<ngx_echo/echo_exec> or
+command L<ngx_rewrite/rewrite>. However, let's focus on
+command L<ngx_rewrite/rewrite> for the moment since command
+L<ngx_echo/echo_exec> is executed in C<content> phase and
+becomes irrelevant to C<post-rewrite>, the former draws greater
+interest because it executes in L<rewrite> phase. Back to
+our example in L<vartut/(02)>:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /foo {
+            set $a hello;
+            rewrite ^ /bar;
+        }
+
+        location /bar {
+            echo "a = [$a]";
+        }
+    }
+
+The command L<ngx_rewrite/rewrite> found in directive
+C<location /foo>, rewrites the URI of current request
+as C</bar> unconditionally, meanwhile, it issues an
+"internal jump" and execution continues from C<location /bar>.
+What ultimately intrigues us, is the magical bits and pieces
+of "internal jump" mechanism, "internal jump" effectively
+rewinds our processing of current request back to the
+C<find-config> phase, so that the C<location> directives
+can be matched again to the request URI, which usually
+has been rewritten. Just like our example, whose URI is
+rewritten as C</bar> by command L<ngx_rewrite/rewrite>,
+the C<location /bar> directive is matched and execution
+repeats the C<rewrite> phase thereafter.
+
+It might not be obvious, that the actual act of rewinding to
+C<find-config> does not occur in C<rewrite> phase, instead
+it occurs in the following C<post-rewrite> phase. Command
+L<ngx_rewrite/rewrite> in the former example, simply requests
+Nginx to issue an "internal jump" in its C<post-rewrite>
+phase. This design is usually questioned by Nginx beginners
+and they tend to come up with an idea to execute the "internal
+jump" directly by command L<ngx_rewrite/rewrite>. The answer
+however, is fairly simple. The design allows URI be rewritten
+multiple times in the C<location> directive,which is matched at
+the very beginning. Such as:
+
+    :nginx
+    location /foo {
+        rewrite ^ /bar;
+        rewrite ^ /baz;
+
+        echo foo;
+    }
+
+    location /bar {
+        echo bar;
+    }
+
+    location /baz {
+        echo baz;
+    }
+
+The request URI has been rewritten twice in C<location /foo>
+directive: firstly it becomes C</bar>, secondly it becomes
+C</baz>. As the net effect of both L<ngx_rewrite/rewrite>
+statements, "internal jump" occurs only once in C<post-rewrite>
+phase. If it would have executed the "internal jump" at
+the first URI rewrite, the second would have no chance to be
+executed since processing would have left current C<location>
+directive. To prove this we send a request to C</foo>:
+
+    :bash
+    $ curl localhost:8080/foo
+    baz
+
+It can be asserted from the output, the actual jump is from
+C</foo> to C</baz>. We could further prove this by enabling
+Nginx "debug log" and interrogate the debug log
+generated in C<find-config> phase for the matched:
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 89449#0: *1 using configuration "/foo"
+    [debug] 89449#0: *1 using configuration "/baz"
+
+Clearly, for the specific request, Nginx only matches
+two C<location> directives: C</foo> and C</baz>, and "internal
+jump" occurs only once.
+
+Quite obviously, if command C<ngx_rewrite/rewrite> is used
+to rewrite the request URI in C<server> directive, there won't
+be any "internal jumps", this is because the URI rewrite
+is happening in C<server-rewrite> phase, which gets executed
+earlier than C<find-config> phase that matches in between
+the C<location> directives. We can check the example below:
+
+    :nginx
+    server {
+        listen 8080;
+
+        rewrite ^/foo /bar;
+
+        location /foo {
+            echo foo;
+        }
+
+        location /bar {
+            echo bar;
+        }
+    }
+
+In the example, every request whose URI starts with C</foo>
+gets its URI rewritten as C</bar>. The rewriting occurs
+in C<server-rewrite> phase, and the request has never been
+matched to any C<location> directive. Only afterwards Nginx
+executes the matches in C<find-config> phase. So if we send
+a request to C</foo>, C<location /foo> never gets matched
+because when the match occurs in C<find-config> phase, the
+request URI has been rewritten as C</bar>. So C<location /bar>
+is the one and the only one matched directive. Actual output
+illustrates this:
+
+    $ curl localhost:8080/foo
+    bar
+
+Again let's check Nginx "debug log":
+
+    :bash
+    $ grep 'using config' logs/error.log
+    [debug] 92693#0: *1 using configuration "/bar"
+
+As we can tell, Nginx altogether finishes once the C<location>
+match, and there is no "internal jump".

@@ -115,7 +115,7 @@ C</foo> 接口的结果证实了这一点：
 
 从输出结果可以看到，上例确实成功地从 C</foo> 一步跳到了 C</baz>
 中。如果启用 Nginx “调试日志”的话，还可以从 C<find-config>
-阶段生成的 C<locatin> 块的匹配信息中进一步证实这一点：
+阶段生成的 C<location> 块的匹配信息中进一步证实这一点：
 
     :bash
     $ grep 'using config' logs/error.log
