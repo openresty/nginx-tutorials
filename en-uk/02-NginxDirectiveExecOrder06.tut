@@ -47,18 +47,18 @@ in phase C<content>.
 
 We have learnt in L<vartut/Nginx Variables (02)>, commands
 L<ngx_echo/echo_exec> and L<ngx_rewrite/rewrite> can trigger
-"internal jumps" as well. The jump modifies the request URI,
+"internal redirects" as well. The jump modifies the request URI,
 and looks for the corresponding C<location> directive for
 subsequent handling. In the process, phases C<rewrite>,
 C<access> and C<content> are reiterated for the C<location>.
-The "internal jump" is different from the "external redirect"
+The "internal redirect" is different from the "external redirect"
 defined by HTTP response code 302 and 301, client browser
 won't update its URI addresses. Therefore as soon as internal
 jump occurs when module L<ngx_index> finds the files specified
 by command L<ngx_index/index>, the net effect is like client
 would have been requesting the file's URI at the very beginning.
 
-We can check following example to witness the "internal jump"
+We can check following example to witness the "internal redirect"
 triggered by module L<ngx_index>, when it finds the needed file.
 
     :nginx
@@ -85,7 +85,7 @@ file F<index.html> (which shall be empty) ? Firstly Nginx uses
 directive C<location /> to handle original C<GET /> request, then
 module L<ngx_index> executes in C<content> phase, and it finds
 file F<index.html> under path F</var/www/>. At this moment, it
-triggers an "internal jump" to location C</index.html>.
+triggers an "internal redirect" to location C</index.html>.
 
 So far so good. But here comes the surprises ! When Nginx
 looks for C<location> directive which matches to C</index.html>,
@@ -142,14 +142,14 @@ They are F<cgi-bin/>, F<error/>, F<htdocs/> and F<icons/>. The output
 might be different if you have tried by yourself.
 
 Again, if file F</var/www/index.hmtl> does exist, module L<ngx_index>
-will trigger "internal jump", and module L<ngx_autoindex> will not have
+will trigger "internal redirect", and module L<ngx_autoindex> will not have
 a chance to execute, you may test it yourself too.
 
 The "goal keeper" module executed in phase C<content> is L<ngx_static>.
 which is also used intensively. The module serves the static files, including
 the static resources of a web site, such as static F<.html> files, static
 F<.css> files, static F<.js> files and static image files etc. Although
-L<ngx_index> could trigger an "internal jump" to the specified home page,
+C<ngx_index> could trigger an "internal redirect" to the specified home page,
 but the actual output task (takes the file content as response, and marks
 the corresponding response headers) is carried out by module L<ngx_static>.
 

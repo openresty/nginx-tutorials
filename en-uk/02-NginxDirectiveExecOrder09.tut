@@ -51,10 +51,10 @@ also executed in phase C<rewrite>.
 After C<rewrite>, it is the C<post-rewrite> phase. Just
 like C<find-config>, this phase does not allow Nginx modules
 to register their handlers either, instead it carries out
-the needed "internal jumps" by Nginx core (if this has been
+the needed "internal redirects" by Nginx core (if this has been
 requested in C<rewrite> phase). We have addressed the "internal
 jump" concept in L<vartut/(02)>, and demonstrated how to issue
-the "internal jump" with command L<ngx_echo/echo_exec> or
+the "internal redirect" with command L<ngx_echo/echo_exec> or
 command L<ngx_rewrite/rewrite>. However, let's focus on
 command L<ngx_rewrite/rewrite> for the moment since command
 L<ngx_echo/echo_exec> is executed in C<content> phase and
@@ -79,9 +79,9 @@ our example in L<vartut/(02)>:
 The command L<ngx_rewrite/rewrite> found in directive
 C<location /foo>, rewrites the URI of current request
 as C</bar> unconditionally, meanwhile, it issues an
-"internal jump" and execution continues from C<location /bar>.
+"internal redirect" and execution continues from C<location /bar>.
 What ultimately intrigues us, is the magical bits and pieces
-of "internal jump" mechanism, "internal jump" effectively
+of "internal redirect" mechanism, "internal redirect" effectively
 rewinds our processing of current request back to the
 C<find-config> phase, so that the C<location> directives
 can be matched again to the request URI, which usually
@@ -94,7 +94,7 @@ It might not be obvious, that the actual act of rewinding to
 C<find-config> does not occur in C<rewrite> phase, instead
 it occurs in the following C<post-rewrite> phase. Command
 L<ngx_rewrite/rewrite> in the former example, simply requests
-Nginx to issue an "internal jump" in its C<post-rewrite>
+Nginx to issue an "internal redirect" in its C<post-rewrite>
 phase. This design is usually questioned by Nginx beginners
 and they tend to come up with an idea to execute the "internal
 jump" directly by command L<ngx_rewrite/rewrite>. The answer
@@ -121,8 +121,8 @@ the very beginning. Such as:
 The request URI has been rewritten twice in C<location /foo>
 directive: firstly it becomes C</bar>, secondly it becomes
 C</baz>. As the net effect of both L<ngx_rewrite/rewrite>
-statements, "internal jump" occurs only once in C<post-rewrite>
-phase. If it would have executed the "internal jump" at
+statements, "internal redirect" occurs only once in C<post-rewrite>
+phase. If it would have executed the "internal redirect" at
 the first URI rewrite, the second would have no chance to be
 executed since processing would have left current C<location>
 directive. To prove this we send a request to C</foo>:
@@ -147,7 +147,7 @@ jump" occurs only once.
 
 Quite obviously, if command C<ngx_rewrite/rewrite> is used
 to rewrite the request URI in C<server> directive, there won't
-be any "internal jumps", this is because the URI rewrite
+be any "internal redirects", this is because the URI rewrite
 is happening in C<server-rewrite> phase, which gets executed
 earlier than C<find-config> phase that matches in between
 the C<location> directives. We can check the example below:
@@ -188,4 +188,4 @@ Again let's check Nginx "debug log":
     [debug] 92693#0: *1 using configuration "/bar"
 
 As we can tell, Nginx altogether finishes once the C<location>
-match, and there is no "internal jump".
+match, and there is no "internal redirect".
