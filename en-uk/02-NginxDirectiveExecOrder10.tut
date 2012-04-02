@@ -1,0 +1,249 @@
+= Nginx directive execution order (10) =
+
+After C<post-rewrite>, it is the C<preaccess> phase.
+Just as its name implies, the phase is called C<preaccess>
+simply because it is executed right before C<access> phase.
+
+Built-in module L<ngx_limit_req> and L<ngx_limit_zone> are
+executed in this phase. The former limits the number of
+requests per hour/minute, and the latter limits the number
+of simultaneous requests. We will be discussing them more
+thoroughly afterwards.
+
+Actually, built-in module L<ngx_realip> registers its
+handler in C<preaccess> as well. You might need to ask
+then: "why do it again? Did it register its handlers in
+C<post-read> phase already". Before the answer is uncovered
+let's study following example:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set_real_ip_from 127.0.0.1;
+            real_ip_header X-Real-IP;
+
+            echo "from: $remote_addr";
+        }
+    }
+
+Comparing to the earlier example, the major difference is
+that commands of module L<ngx_realip> are written in a
+specific C<location> directive. As we have learnt before,
+Nginx matches its C<location> directives in C<find-config>
+phase, which is far behind C<post-read>, hence the request
+has nothing to do with commands written in any C<location>
+directive in C<post-read> phase. Back to our example,
+it is exactly the case where commands are written in a
+C<location> directive and module L<ngx_realip> won't carry
+out any rewrite of the remote address, because it is not
+instructed as such in C<post-read> phase.
+
+What if we do need the rewrite? To help resolve the issue,
+module L<ngx_realip> registers its handlers in C<preaccess>
+again, so that it is given the chance to execute in a
+C<location> directive. Now the example runs as we would've
+expected:
+
+    $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
+    from: 1.2.3.4
+
+Be really careful though, module L<ngx_realip> could easily
+be misused, as our following example illustrates:
+
+    :nginx
+    server {
+        listen 8080;
+
+        location /test {
+            set_real_ip_from 127.0.0.1;
+            real_ip_header X-Real-IP;
+
+            set $addr $remote_addr;
+            echo "from: $addr";
+        }
+    }
+
+In the example, we introduces a variable C<$addr>, to which
+the value of L<ngx_core/$remote_addr> is saved in C<rewrite>
+phase. The variable is then used in the output. Slow down
+right here and you might have noticed the issue, phase C<rewrite>
+occurs earlier than C<preaccess>, so variable assignment
+actually happens before module L<ngx_realip> has the chance
+to rewrite the remote address in C<preaccess> phase. The
+output proves our observation:
+
+    :bash
+    $ curl -H 'X-Real-IP: 1.2.3.4' localhost:8080/test
+    from: 127.0.0.1
+
+The output gives the actual remote address (not the rewritten one)
+Again Nginx "debug log" helps assert it too:
+
+    :bash
+    $ grep -E 'http script (var|set)|realip' logs/error.log
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+    [debug] 32488#0: *1 http script set $addr
+    [debug] 32488#0: *1 realip: "1.2.3.4"
+    [debug] 32488#0: *1 realip: 0100007F FFFFFFFF 0100007F
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+Among the logs, the first line writes:
+
+    :text
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+The log is generated when variable L<ngx_core/$remote_addr>
+is fetched by command L<ngx_rewrite/set>, string C<"127.0.0.1">
+is the fetched value.
+
+The second line writes:
+
+    :text
+    [debug] 32488#0: *1 http script set $addr
+
+It indicates Nginx assigns value to variable C<$addr>.
+
+For the following two lines:
+
+    :text
+    [debug] 32488#0: *1 realip: "1.2.3.4"
+    [debug] 32488#0: *1 realip: 0100007F FFFFFFFF 0100007F
+
+They are generated when module L<ngx_realip> rewrites
+the remote address in C<preaccess> phase. As we can tell,
+the new address becomes C<1.2.3.4> as expected but it
+happens only after the variable assignment and that's
+already too late.
+
+Now the last line:
+
+    :text
+    [debug] 32488#0: *1 http script var: "127.0.0.1"
+
+It is generated when command L<ngx_echo/echo> outputs
+variable C<$addr>, clearly the value is the original
+remote address, not the rewritten one.
+
+Some people might come up with a solution immediately:"
+what if module L<ngx_realip> registers its handlers in
+C<rewrite> phase instead, not in C<preacccess> phase ?"
+The solution however is, not necessarily correct. This is
+because module L<ngx_rewrite> registers its handlers in
+C<rewrite> phase too, and we have learnt in L<ordertut/(02)>
+that the execution order, under the circumstances, can
+not be guaranteed, so there is a good chance that
+module L<ngx_realip> still executes its commands after
+command L<ngx_rewrite/set>.
+
+Always we have the backup option: instead of C<preaccess>,
+try use L<ngx_realip> module in C<server> directive, it
+bypasses the bothersome situations encountered above.
+
+After phase C<preaccess>, it is another old friend, the
+C<access> phase. As we've learnt, built-in module L<ngx_access>,
+3rd party module L<ngx_auth_request> and 3rd party module
+L<ngx_lua> (L<ngx_lua/access_by_lua>) have their commands
+executed in this phase.
+
+After phase C<access>, it is the C<post-access> phase. Again
+as the name implies, we can easily spot that the phase is
+executed right after C<access> phase. Similar to C<post-rewrite>,
+the phase does not allow Nginx module to register their
+handlers, instead it runs a few tasks by Nginx core, among
+them, primarily is the L<ngx_core/satisfy> functionality, provided
+by module L<ngx_http_core>.
+
+When multiple Nginx module execute their commands in C<access>
+phase, command L<ngx_core/satisfy> controls their relationships
+in between. For example, both module A and module B register
+their access control handlers in C<access> phase, we may have
+two working modes, one is to let access when both A and B pass
+their control, the other is to let access when either A or B
+pass their control. The first one is called C<all> mode ("AND"
+relation), the second one is called C<any> mode ("OR" relation)
+By default, Nginx uses C<all> mode, below is an example:
+
+    :nginx
+    location /test {
+        satisfy all;
+
+        deny all;
+        access_by_lua 'ngx.exit(ngx.OK)';
+
+        echo something important;
+    }
+
+Under C</test> directive, both L<ngx_access> and
+L<ngx_lua> are used, so we have two modules monitoring
+access in C<access> phase. Specifically, statement
+C<deny all> tells module L<ngx_access> to rejects all
+access, whereas statement C<access_by_lua 'ngx.exit(ngx.OK)'>
+allows all access. When C<all> mode is used with command
+L<ngx_core/satisfy>, it means to let access only if every
+module allows access. Since module L<ngx_access> always
+rejects in our case, the request is rejected:
+
+    :bash
+    $ curl localhost:8080/test
+    <html>
+    <head><title>403 Forbidden</title></head>
+    <body bgcolor="white">
+    <center><h1>403 Forbidden</h1></center>
+    <hr><center>nginx</center>
+    </body>
+    </html>
+
+Careful readers might find following error log in the Nginx
+error log file:
+
+    :text
+    [error] 6549#0: *1 access forbidden by rule
+
+If however, we change the C<satisfy all> statement to C<satisfy
+any>.
+
+    :nginx
+    location /test {
+        satisfy any;
+
+        deny all;
+        access_by_lua 'ngx.exit(ngx.OK)';
+
+        echo something important;
+    }
+
+The outcome is completely different:
+
+    :bash
+    $ curl localhost:8080/test
+    something important
+
+The request is allowed to access. Because overall
+access is allowed whenever one module passes the control
+in C<any> mode. In our example, module L<ngx_lua>
+and its command L<ngx_lua/access_by_lua> always allow
+the access.
+
+Certainly, if every module rejects the access in the
+C<satisfy any> circumstances, the request will be rejected:
+
+    :nginx
+    location /test {
+        satisfy any;
+
+        deny all;
+        access_by_lua 'ngx.exit(ngx.HTTP_FORBIDDEN)';
+
+        echo something important;
+    }
+
+Now request to C</test> will encounter C<403 Forbidden>
+error page. In the process, the "OR" relation of access
+control of each C<access> module, is implemented in
+C<post-access>.
+
+Be careful though, above example requires the version of
+L<ngx_lua> be 0.5.0rc19 or above, its predecessors cannot
+work together with C<satisfy any> statement.
