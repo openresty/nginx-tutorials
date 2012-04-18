@@ -244,6 +244,7 @@ error page. In the process, the "OR" relation of access
 control of each C<access> module, is implemented in
 C<post-access>.
 
-Be careful though, above example requires the version of
-L<ngx_lua> be 0.5.0rc19 or above, its predecessors cannot
-work together with C<satisfy any> statement.
+Please note that this example requires at least L<ngx_lua>
+0.5.0rc19 or later; earlier versions cannot
+work with the C<satisfy any> statement.
+
