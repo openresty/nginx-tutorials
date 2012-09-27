@@ -55,7 +55,7 @@ is what we are after by using Nginx. On the other hand, it's absolutely
 necessary to be equipped with measuring techniques, because only actual
 data
 distinguishes amateurs and professionals. In fact, both L<ngx_lua> and
-<ngx_access>
+L<ngx_access>
 perform pretty good for IP filtering. To minimize measuring errors we could
 measure directly the elapsed time of C<access> phase. Traditionally, this
 means
