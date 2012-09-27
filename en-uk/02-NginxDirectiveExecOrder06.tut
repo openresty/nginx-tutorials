@@ -72,7 +72,7 @@ triggered by module L<ngx_index>, when it finds the needed file.
         echo "a = $a";
     }
 
-We need to create an empty file F<index/html> under the path
+We need to create an empty file F<index.html> under the path
 F</var/www/>, and make sure the file is readable for the Nginx
 worker process. Then we could send request to C</>:
 
