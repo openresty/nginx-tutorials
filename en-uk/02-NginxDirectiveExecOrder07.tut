@@ -134,7 +134,7 @@ play,for example:
         ';
     }
 
-Apparently,  only commands for phase <access> are given for F</auth>,
+Apparently,  only commands for phase C<access> are given for F</auth>,
 which is L<ngx_lua/access_by_lua>. And it has no commands for phase C<content>.
 So when C</auth> is requested, the Lua code specified in C<access> phase
 will execute, then the static resource will be served in phase C<content>
