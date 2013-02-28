@@ -1,15 +1,15 @@
 ver=$(shell date +'%Y.%m.%d')
 
-.PHONY: all zhcn enuk clean
+.PHONY: all zhcn en clean
 
-all: zhcn enuk
+all: zhcn en
 
 zhcn:
 	$(MAKE) -f ebooks.mk
 
-enuk:
-	$(MAKE) -f ebooks.mk lang=$@ lang2=en src=en-uk title="agentzh's Nginx Tutorials (ver $(ver))"
+en:
+	$(MAKE) -f ebooks.mk lang=$@ lang2=en src=en title="agentzh's Nginx Tutorials (ver $(ver))"
 
 clean:
-	rm -rf html/ wiki/ index*.html *.mobi *.epub *.pdf
+	rm -rf html/ wiki/ index*.html *.mobi *.epub *.pdf agentzh-nginx-tutorials-*.html
 

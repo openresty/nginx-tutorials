@@ -21,8 +21,7 @@ users who have never used Nginx before.
 
 The samples in my tutorials are at least compatible with Nginx C<0.8.54>;
 do not try the samples with older versions of Nginx. The latest stable
-version as of this writing is C<1.
-0.10> after all.
+version as of this writing is C<1.0.10> after all.
 
 All of the Nginx modules mentioned in these tutorials are production-ready.
 I will not even mention those standard Nginx modules that are either experimental
