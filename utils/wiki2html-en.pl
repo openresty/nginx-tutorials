@@ -111,7 +111,21 @@ sub fmt_para {
     if ($s =~ /^= (.*?) =$/) {
         my $title = $1;
         return <<"_EOC_";
-    <h3 id="$base">$title</h3>
+    <h1 id="$base">$title</h1>
+_EOC_
+    }
+
+    if ($s =~ /^== (.*?) ==$/) {
+        my $title = $1;
+        return <<"_EOC_";
+    <h2>$title</h2>
+_EOC_
+    }
+
+    if ($s =~ /^=== (.*?) ===$/) {
+        my $title = $1;
+        return <<"_EOC_";
+    <h2>$title</h2>
 _EOC_
     }
 
