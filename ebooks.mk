@@ -1,12 +1,12 @@
-lang=zhcn
-lang2=cn
-src=zh-cn
-ver=$(shell date +'%Y.%m.%d')
-title=agentzh的Nginx教程（$(ver)版）
-name=agentzh-nginx-tutorials-$(lang)
-tutfiles=$(sort $(wildcard $(src)/*.tut))
-wikifiles=$(patsubst %.tut,wiki/%.wiki,$(tutfiles))
-htmlfiles=$(patsubst %.tut,html/%.html,$(tutfiles))
+lang= en
+lang2= en
+src= en
+ver= $(shell date +'%Y.%m.%d')
+title= agentzh's Nginx Tutorials (ver $(ver))
+name= agentzh-nginx-tutorials-$(lang)
+tutfiles= $(sort $(wildcard $(src)/*.tut))
+wikifiles= $(patsubst %.tut,wiki/%.wiki,$(tutfiles))
+htmlfiles= $(patsubst %.tut,html/%.html,$(tutfiles))
 
 .PHONY: all mobi epub pdf html
 
@@ -59,4 +59,3 @@ wiki/%.wiki: %.tut ./utils/tut2wiki-$(lang2).pl
 	./utils/tut2wiki-$(lang2).pl -o $@ $<
 
 #test: ; echo $(htmlfiles)
-
