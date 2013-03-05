@@ -110,22 +110,25 @@ sub fmt_para {
     my ($s, $ctx) = @_;
     if ($s =~ /^= (.*?) =$/) {
         my $title = $1;
+        my $id = quote_anchor($base);
         return <<"_EOC_";
-    <h1 id="$base">$title</h1>
+    <h1 id="$id">$title</h1>
 _EOC_
     }
 
     if ($s =~ /^== (.*?) ==$/) {
         my $title = $1;
+        my $id = quote_anchor("$base-$title");
         return <<"_EOC_";
-    <h2>$title</h2>
+    <h2 id="$id">$title</h2>
 _EOC_
     }
 
     if ($s =~ /^=== (.*?) ===$/) {
         my $title = $1;
+        my $id = quote_anchor("$base-$title");
         return <<"_EOC_";
-    <h2>$title</h2>
+    <h3 id="$id">$title</h3>
 _EOC_
     }
 
@@ -169,7 +172,7 @@ _EOC_
                 }
 
                 $serial = sprintf("%02d", $serial);
-                my $base = "$serial-${chapter}01";
+                my $base = lc("$serial-${chapter}01");
                 $res .= qq{$indent<a href="#$base">$label</a>};
 
             } elsif ($label =~ m/(.*)\((\d{2})\)/) {
@@ -249,3 +252,17 @@ sub usage {
     die "Usage: $0 [-o <outfile>] <infile>\n";
 }
 
+sub quote_anchor {
+    my $id = shift;
+    for ($id) {
+        s/\$/dollar/g;
+        s/[^-\w.]/-/g;
+        s/--+/-/g;
+        s/^-+|-+$//g;
+        $_ = lc;
+    }
+
+    $id =~ s/^01-nginxvariables01-/nginx-variables-/;
+
+    return $id;
+}

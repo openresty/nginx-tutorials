@@ -33,16 +33,17 @@ _EOC_
 $res .= "<ul>\n";
 for my $infile (@ARGV) {
     (my $base = $infile) =~ s{.*/|\.html$}{}g;
+    my $id = lc($base);
 
     if ($infile =~ /Foreword(\d+)/) {
         my $n = $1;
         if ($n eq '01') {
         $res .= <<_EOC_;
-    <li><a href="#$base">Foreword</a></li>
+    <li><a href="#$id">Foreword</a></li>
 _EOC_
         } elsif ($n eq '02') {
         $res .= <<_EOC_;
-    <li><a href="#$base">Writing Plan for the Tutorials</a></li>
+    <li><a href="#$id">Writing Plan for the Tutorials</a></li>
 _EOC_
         } else {
             die "unknown infile: $infile";
@@ -53,7 +54,7 @@ _EOC_
         my $n = $nums[$num];
         #$infile =~ s{.*/}{}g;
         $res .= <<_EOC_;
-    <li><a href="#$base">Nginx Variables ($n)</a></li>
+    <li><a href="#$id">Nginx Variables ($n)</a></li>
 _EOC_
 
     } elsif ($infile =~ /DirectiveExecOrder(\d+)/) {
@@ -61,7 +62,7 @@ _EOC_
         my $n = $nums[$num];
         #$infile =~ s{.*/}{}g;
         $res .= <<_EOC_;
-    <li><a href="#$base">Nginx Directive Execution Order ($n)</a></li>
+    <li><a href="#$id">Nginx Directive Execution Order ($n)</a></li>
 _EOC_
 
     } else {
