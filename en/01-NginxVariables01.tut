@@ -7,7 +7,8 @@ Nginx configuration files are essentially small programs.
 This language's design
 is heavily influenced by
 Perl and Bourne Shell as far as I can see, despite the fact that it might not
-be Turing-Complete. This is a distinguishing feature of Nginx, as compared
+be Turing-Complete and it is declarative in many places. This is a
+distinguishing feature of Nginx, as compared
 to the other web servers
 like Apache or Lighttpd. Being a programming language, "variables" are
 thus a natural part of it (exceptions do exist, of course, as in pure
@@ -15,27 +16,28 @@ functional languages like Haskell).
 
 Variables are just containers holding various values in imperative languages
 like Perl, Bourne Shell, and C/C++.
-And "values" here can be numbers like C<3.14>, strings like
+And "values" can be numbers like C<3.14>, strings like
 C<hello world>, or even complicated things like references to arrays or
-hash tables. For the
-Nginx configuration language, however, variables can only hold one single type
-of values, that is, strings.
+hash tables in those languages. For the
+Nginx configuration language, however, variables can hold only one type
+of values, that is, strings (there is an interesting exception: the 3rd-party
+module L<ngx_array_var> extends Nginx variables to hold arrays, but it is
+implemented by encoding a C pointer as a binary string value behind the scene).
 
 == Variable Syntax and Interpolation ==
 
-Let's say our F<nginx.conf> configuration file has the following configuration
-line:
+Let's say our F<nginx.conf> configuration file has the following line:
 
     :nginx
     set $a "hello world";
 
-where we assign a value to the variable C<$a> via the L<ngx_rewrite/set>
+We assign a value to the variable C<$a> via the L<ngx_rewrite/set>
 configuration directive coming from the standard L<ngx_rewrite> module. In
-particular, we assign the string value C<hello world> to it.
+particular, we assign the string value C<hello world> to C<$a>.
 
 We can see that the Nginx variable name takes a dollar sign (C<$>) in front of
 it. This is required by the language syntax: whenever we want to reference an
-Nginx variable in the configuration file, we must add a C<$> prefix. This look
+Nginx variable in the configuration file, we must add a C<$> prefix. This looks
 very familiar to those Perl and PHP programmers.
 
 Such variable prefix modifiers may discomfort some C<Java> and C<C#>
@@ -49,7 +51,7 @@ string literal:
 
 Here we use the value of the existing Nginx variable C<$a> to construct the
 value for the variable C<$b>. So after these two directives complete execution,
-the value of C<$a> is C<hello>, and C<$b> C<hello, hello>. This technique is
+the value of C<$a> is C<hello>, and C<$b> is C<hello, hello>. This technique is
 called "variable interpolation" in the Perl world, which makes ad-hoc string
 concatenation operators no longer that necessary. Let's use the same term for
 the Nginx world from now on.
@@ -98,11 +100,11 @@ not work at all:
     ?     echo "$";
     ? }
 
-we will get the following error message while loading this configuration:
+We will get the following error message while loading this configuration:
 
     [emerg] invalid variable name in ...
 
-Obviously Nginx is try to parse C<$"> as a variable name. Is there a way to
+Obviously Nginx tries to parse C<$"> as a variable name. Is there a way to
 escape C<$> in the string literal? The answer is "no" (it is still the case in
 the
 latest Nginx stable
@@ -110,10 +112,11 @@ release C<1.2.7>) and I have been hoping that we could write something like
 C<$$> to obtain a literal C<$>.
 
 Luckily, workarounds do exist and here is one proposed by Maxim Dounin: first
-we assign to a variable a literal string containing the dollar sign character
+we assign to a variable a literal string containing a dollar sign character
 via a configuration directive that does I<not> support "variable interpolation"
 (remember that not all the directives support "variable interpolation"?), and
-then use L<ngx_echo/echo> to print out this variable's value. Here is such an
+then reference this variable later wherever we need a dollar sign. Here is such
+an
 example to demonstrate the idea:
 
     :nginx
@@ -139,22 +142,23 @@ Here we make use of the L<ngx_geo/geo> directive of the standard module
 L<ngx_geo> to initialize the
 C<$dollar> variable with the string C<"$">, thereafter variable C<$dollar>
 can be used
-wherever we need a literal dollar sign. This works because the L<ngx_geo/geo>
+in places that require a dollar sign. This works because the L<ngx_geo/geo>
 directive does not
 support "variable interpolation" at all. However, the L<ngx_geo> module
-is designed to set a Nginx variable to different values according to the
+is originally designed to set a Nginx variable to different values according to
+the
 remote client
-address. In the sample above, we just abuse it to initialize the C<$dollar>
+address, and in this example, we just abuse it to initialize the C<$dollar>
 variable
 with the string C<"$"> unconditionally.
 
 === Disambiguating Variable Names ===
 
-There is a special case when using "variable interpolation" when the variable
-name is followed directly by characters consisting the variable names (like
+There is a special case for "variable interpolation", that is, when the variable
+name is followed directly by characters allowed in variable names (like
 letters, digits, and underscores).
 In such cases we can use a special notation to disambiguate the variable name
-from the subsequent literal characters:
+from the subsequent literal characters, for instance,
 
     :nginx
     server {
@@ -171,20 +175,22 @@ If it
 were written
 directly as C<"$firstworld">, Nginx's "variable interpolation" engine (also
 known as the "script engine") would try to access the variable
-C<$firstworld> instead of C<$first>. To resolve the ambiguity, curly brackets
+C<$firstworld> instead of C<$first>. To resolve the ambiguity here, curly braces
 must be used
-after the C<$> prefix, as in C<${first}>. Let's test this sample:
+around the variable name (excluding the C<$> prefix), as in C<${first}>. Let's
+test this sample:
 
     :bash
     $ curl 'http://localhost:8080/test
     hello world
 
-== Variable Declaration or Creation ==
+== Variable Declaration and Creation ==
 
 In languages like C/C++, variables must be declared (or created) before they
 can be used so that the compiler can allocate storage and perform type checking
 at compile-time. Similarly, Nginx creates all the Nginx variables while loading
-the configuration file (or in other words, at "configuration time"), so Nginx
+the configuration file (or in other words, at "configuration time"), therefore
+Nginx
 variables are also required to be declared somehow.
 
 Fortunately the L<ngx_rewrite/set> directive and the L<ngx_geo/geo> directive
@@ -210,18 +216,17 @@ L<ngx_echo/echo>. Nginx will just refuse loading this configuration:
 Yes, we cannot even start the server!
 
 Nginx variable creation and assignment happen
-at completely phases along the timeline.
+at completely different phases along the time-line.
 Variable creation only occurs when Nginx loads its configuration. On the other
 hand, variable assignment occurs when requests are actually
-being handled. This also means that we can never create new Nginx variables at
+being served. This also means that we can never create new Nginx variables at
 "request time".
 
 == Variable Scope ==
 
 Once an Nginx variable is created, it is visible to the entire configuration,
-regardless of the location
-it is referenced, even across different virtual server configuration blocks.
-Here is
+even across different virtual server configuration
+blocks, regardless of the places it is declared at. Here is
 an example:
 
     :nginx
@@ -262,22 +267,24 @@ is only used in that location. When requesting the C</foo> interface, we always
 get an empty value for the C<$foo> variable because that is what we get when
 accessing an uninitialized variable.
 
-Another important behavior that we can observe from this example is that even
+Another important characteristic that we can observe from this example is that
+even
 though the scope of Nginx variables is the entire configuration, each request
-does have its own version of all those variables. Or in other words, each
-request has its own copy of value containers for all variables. Requests do not
+does have its own version of all those variables' containers. Requests do not
 interfere with each other even if they are referencing a variable with the same
 name. This is very much like local variables in C/C++ function bodies. Each
 invocation of the C/C++ function does use its own version of those local
-variables.
+variables (on the stack).
 
 For instance, in this sample, we request C</bar> and the variable C<$foo> gets
 the value C<32>, which does not affect the value of C<$foo> in subsequent
 requests to C</foo> (it is still uninitialized!), because they correspond to
 different value containers.
 
-One of the most common mistakes for Nginx newcomers is to regard Nginx
+One common mistake for Nginx newcomers is to regard Nginx
 variables as something shared among all the requests. Even though the scope of
-Nginx variables go across configuration blocks, it never goes beyond request
-boundaries. Essentially here we do have two different kinds of scopes here.
+Nginx variable I<names> go across configuration blocks at "configuration time",
+its I<value container>'s scope never goes beyond request
+boundaries at "request time". Essentially here we do have two different kinds
+of scope here.
 
