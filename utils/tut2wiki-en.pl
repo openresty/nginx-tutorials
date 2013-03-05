@@ -188,6 +188,7 @@ while (<$in>) {
     s{\bL<(http[^\|\>\s]+)>}{[$1 $1]}g;
 
     s{\b[FC]<(.*?)>}{<code>$1</code>}g;
+    s{\bI<(.*?)>}{<I>$1</I>}g;
 
 } continue {
     $prev = $orig;
