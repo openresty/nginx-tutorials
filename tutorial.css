@@ -1,0 +1,50 @@
+div.thumb img.thumbimage {
+    background-color: #FFFFFF;
+}
+
+html .thumbimage {
+    border: 1px solid #CCCCCC;
+}
+
+img {
+    vertical-align: middle;
+}
+
+div.thumbinner {
+    background-color: #F9F9F9;
+    border: 1px solid #CCCCCC;
+    font-size: 94%;
+    overflow: hidden;
+    padding: 3px !important;
+    text-align: center;
+    min-width: 100px;
+}
+
+.thumbcaption {
+    text-align: left;
+    border: medium none;
+    font-size: 94%;
+    line-height: 1.4em;
+    padding: 3px !important;
+}
+
+div.tright {
+    margin: 0.5em 1.3em 1.3em 1.4em;
+}
+
+div.thumb {
+    background-color: transparent;
+    width: auto;
+}
+
+div.tright, div.floatright, table.floatright {
+    clear: right;
+    float: right;
+}
+
+.magnify {
+    float: right;
+    background: none repeat scroll 0 0 transparent !important;
+    border: medium none !important;
+    direction: ltr;
+}

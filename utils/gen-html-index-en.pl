@@ -25,6 +25,7 @@ my $res = <<_EOC_;
     <head>
         <title>agentzh's Nginx Tutorials (version $ver)</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <link rel="stylesheet" href="tutorial.css"/>
     </head>
     <body><h2>agentzh's Nginx Tutorials (version $ver)</h2>
     <h3>Table of Contents</h3>

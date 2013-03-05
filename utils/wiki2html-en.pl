@@ -116,6 +116,16 @@ sub fmt_para {
 _EOC_
     }
 
+    $s =~ s{\[\[File:(.*?)\|thumb\|alt=(.*?)\]\]}
+           {<div class="thumb tright">
+               <div class="thumbinner" style="width:222px;">
+                <img class="thumbimage" width="220" src="image/$1">
+                <div class="thumbcaption">
+                    <div class="magnify">$2</div>
+                </div>
+               </div>
+            </div>}g;
+
     if ($s =~ /^== (.*?) ==$/) {
         my $title = $1;
         my $id = quote_anchor("$base-$title");
