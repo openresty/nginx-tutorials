@@ -9,4 +9,7 @@ wiki/
 *.mobi
 *.epub
 *.pdf
+*.png
+go
+draft/
 upload

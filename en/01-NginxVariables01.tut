@@ -14,6 +14,8 @@ like Apache or Lighttpd. Being a programming language, "variables" are
 thus a natural part of it (exceptions do exist, of course, as in pure
 functional languages like Haskell).
 
+[[File:value-container.jpg|thumb|alt=Variables are value containers]]
+
 Variables are just containers holding various values in imperative languages
 like Perl, Bourne Shell, and C/C++.
 And "values" can be numbers like C<3.14>, strings like
