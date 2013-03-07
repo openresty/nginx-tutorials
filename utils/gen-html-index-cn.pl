@@ -25,6 +25,19 @@ my $res = <<_EOC_;
     <head>
         <title>agentzh 的 Nginx 教程（版本 $ver）</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        <script type="text/javascript">
+
+          var _gaq = _gaq || [];
+          _gaq.push(['_setAccount', 'UA-24724965-1']);
+          _gaq.push(['_trackPageview']);
+
+          (function() {
+            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+          })();
+
+        </script>
     </head>
     <body><h2>agentzh 的 Nginx 教程（版本 $ver）</h2>
     <h3>目录</h3>
