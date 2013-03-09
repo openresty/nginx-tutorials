@@ -1,3 +1,86 @@
+body {
+  font-size: 1em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  border-bottom: 1px solid #aaa;
+  padding-top: .5em;
+  padding-bottom: .17em;
+  margin: 0;
+}
+
+ul {
+  line-height: 1.4em;
+}
+li {
+  margin-bottom: .1em;
+}
+
+h1.page-title {
+  margin-top: 0;
+  margin-bottom: .1em;
+  line-height: 1.2em;
+  padding-bottom: 0;
+}
+
+article h1 {
+  margin-bottom: .6em;
+  font-size: 150%;
+}
+
+code {
+  font-family: monospace,Courier;
+  color: black;
+  font-size: .9em;
+  background-color: #eee;
+  padding: 0 2px;
+}
+
+.content {
+  padding: 1.5em;
+}
+
+code.block {
+  display: block;
+  line-height: 1.3em;
+  padding: 1em;
+  border: 1px dashed #2f6fab;
+  margin: 1em 0px;
+  background-color: #f9f9f9;
+}
+
+@media screen {
+  @font-face{font-family:'Octicons Regular';src:url("https://a248.e.akamai.net/assets.github.com/assets/octicons/octicons-regular-webfont-a20448aa13cf370506c8a675c4fc0efba750115c.eot");src:url("https://a248.e.akamai.net/assets.github.com/assets/octicons/octicons-regular-webfont-a20448aa13cf370506c8a675c4fc0efba750115c.eot#iefix") format("embedded-opentype"),url("https://a248.e.akamai.net/assets.github.com/assets/octicons/octicons-regular-webfont-46d3d8ac303cad13c0b2006f8e8149a472d9d4e5.woff") format("woff"),url("https://a248.e.akamai.net/assets.github.com/assets/octicons/octicons-regular-webfont-93f33ad81ec64b5f0980ad57a53cf82e8445cab9.ttf") format("truetype"),url("https://a248.e.akamai.net/assets.github.com/assets/octicons/octicons-regular-webfont-f963ccb8f0402b76e11107147fe5b2e275319280.svg#newFontRegular") format("svg");font-weight:normal;font-style:normal}
+
+  .toc {
+    width: 190px;
+    border: 1px solid #aaa;
+    background-color: #f9f9f9;
+    padding: 5px;
+    font-size: 95%;
+    position: fixed; left: 10px; top: 100px;
+  }
+  .toc ul {
+    padding-left: 24px;
+  }
+  .content {
+    margin-left: 200px;
+  }
+
+  .content .con-title .anchor {
+    opacity: 0;
+    font-family: 'Octicons Regular';
+    color: blue; text-decoration: none; font-size: .8em;
+  }
+  .content .con-title:hover .anchor {
+    opacity: 1;
+  }
+  .content .con-title:target .anchor {
+    opacity: 1;
+    color: red;
+  }
+}
+
 div.thumb img.thumbimage {
     background-color: #FFFFFF;
 }

@@ -18,8 +18,6 @@ my @nums = qw(
    二十
 );
 
-my @infiles = @ARGV;
-
 my $res = <<_EOC_;
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh" lang="zh">
     <head>
