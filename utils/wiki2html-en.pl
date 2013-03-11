@@ -266,6 +266,7 @@ sub quote_anchor {
     my $id = shift;
     for ($id) {
         s/\$/dollar/g;
+        s/\&/and/g;
         s/[^-\w.]/-/g;
         s/--+/-/g;
         s/^-+|-+$//g;
