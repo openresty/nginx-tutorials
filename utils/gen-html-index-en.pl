@@ -18,8 +18,6 @@ my @nums = qw(
    20
 );
 
-my @infiles = @ARGV;
-
 my $res = <<_EOC_;
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
     <head>
@@ -42,7 +40,8 @@ my $res = <<_EOC_;
 
         </script>
     </head>
-    <body><h2>agentzh's Nginx Tutorials (version $ver)</h2>
+    <body><h1 class="page-title">agentzh's Nginx Tutorials (version $ver)</h1>
+    <section class="toc">
     <h3>Table of Contents</h3>
 _EOC_
 
@@ -87,13 +86,22 @@ _EOC_
 }
 
 $res .= "</ul>\n";
+$res .= "</section>\n";
+
+$res .= "<section class=\"content\">\n";
 
 for my $infile (@ARGV) {
     open my $in, $infile
         or die "Cannot open $infile for reading: $!\n";
-    $res .= do { local $/; <$in> };
+    $res .= "<article>\n";
+    my $c = do { local $/; <$in> };
+    $c =~ s/<(h[1-6]) id="([^"]+)">(.+?)<\/\1>/<$1 class="con-title" id="$2">$3 <a class="anchor" href="#$2">&#61532;<\/a><\/$1>/g;
+    $res .= $c;
+    $res .= "</article>\n";
     close $in;
 }
+
+$res .= "</section>\n";
 
 $res .= "</body></html>";
 

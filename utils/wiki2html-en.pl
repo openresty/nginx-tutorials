@@ -144,7 +144,7 @@ _EOC_
 
     if (/^<geshi/) {
         $ctx->{code} = 1;
-        return "<code>";
+        return "<code class=\"block\">";
     }
 
     if (m{^</geshi>}) {
@@ -253,6 +253,8 @@ sub fmt_html {
 
 sub fmt_code {
     my $s = shift;
+    # new template do not need the space indent
+    $s =~ s/^ {4}//g;
     $s = fmt_html($s);
     $s =~ s{\n}{<br/>\n}sg;
     $s;
