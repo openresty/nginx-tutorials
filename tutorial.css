@@ -128,3 +128,29 @@ div.tright, div.floatright, table.floatright {
     border: medium none !important;
     direction: ltr;
 }
+
+.backtop-box {
+  position: fixed; left: 180px; bottom: 20px;
+}
+.backtop-box b {
+  display: block; cursor: pointer;
+  width: 40px; height: 40px;
+  opacity: 0;
+  background: #fff;;
+  text-align: center;
+  border: 1px solid #aaa;
+  border-radius: 18px 2px 2px 2px;
+  -moz-border-radius: 18px 2px 2px 2px;
+  -webkit-border-radius: 18px 2px 2px 2px;
+  -o-border-radius: 18px 2px 2px 2px;
+  -ms-border-radius: 18px 2px 2px 2px;
+  line-height: 40px;
+  color: #666;
+}
+.backtop-box b:hover {
+  background: #eee;
+}
+.backtop-box-show b {
+  opacity: 1;
+}
+
