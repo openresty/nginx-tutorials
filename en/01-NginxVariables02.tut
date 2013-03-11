@@ -1,8 +1,15 @@
 = Nginx Variables (02) =
 
-One common misunderstanding with Nginx variable, is its life cycle be bounded
-with the C<Location> directive. Let's challenge it by checking another
-example
+== Variable Lifetime & Internal Redirection ==
+
+We already know that Nginx variables are bound to each request handled by
+Nginx, for this reason they have exactly the same lifetime as the corresponding
+request.
+
+There is another common misunderstanding here though: some newcomers tend to
+assume
+that the lifetime of Nginx variables is bound to the C<location> configuration
+block. Let's consider the following counterexample:
 
     :nginx
     server {
@@ -18,52 +25,51 @@ example
         }
     }
 
-We use the 3rd party module L<ngx_echo> and its command L<ngx_echo/echo_exec>
-to execute C<location /bar> from within C<location /foo>. The mechanism
-is like
-"jumping" from one C<location> to another C<location> in Nginx internals
-when
-handling a specific request. This is different with HTTP C<301> and C<302>
-redirect, which conducts the external jump by collaborating with HTTP client.
-External redirect can be asserted when requesting URL is modified. Whereas
-Nginx
-internal jumps has no impact on the client side, and just like the C<exec>
-command
-found in C<Bourne Shell> (or C<Bash>), the execution path has no returns.
-Another
-close schema is the C<goto> statement in C<C>.
+Here in C<location /foo> we use the L<ngx_echo/echo_exec> directive (provided
+by the 3rd-party module L<ngx_echo>) to initiate an "internal redirection" to
+C<location /bar>. The "internal redirection" is an operation that makes Nginx
+jump
+from one C<location> to another while processing a request. This "jumping"
+happens
+completely within the server itself. This is different from those "external
+redirections"
+based on the HTTP C<301> and C<302> responses because the latter is
+collaborated externally, by the HTTP clients. Also, in case of "external
+redirections", the
+end user could usually observe the change of the URL in her web browser's
+address bar while this is not the case for internal ones. "Internal
+redirections"
+are very similar to the C<exec> command in
+C<Bourne Shell> (or C<Bash>); it is a "one way trip" and never returns. Another
+similar example is the C<goto> statement in the C<C> language.
 
-Being an internal jump in between the C<location> directives for Nginx
-processing,
-the request remains to be the original one, its copy of declared variables
-has not changed neither.
-Back to our example, if C</foo> is requested, the processing is like following:
-variable C<$a>
-is declared and initialized with string value C<hello> by command L<ngx_rewrite/set>
-within
-C<location> directive, then internal jump occurs by L<ngx_echo/echo_exec>
-and processing continues
-from C<location /bar>. Since C<$a> in the latter case is the same C<$a>
-variable initialized earlier
-we can expect the outcome is C<hello> when variable C<$a> is printed. Let'
-s prove ourselves with
-request:
+Being an "internal redirection", the request after the redirection
+remains the original one. It is just the current C<location> that is changed,
+so we are still using the original copy of the Nginx variable containers. Back
+to our example, the whole workflow is like this: Nginx first assigns to the
+C<$a> variable the string value C<hello> via the L<ngx_rewrite/set> directive
+in C<location /foo>, and then it issues an internal redirection via the
+L<ngx_echo/echo_exec> directive, thus leaving C<location /foo> and entering
+C<location /bar>, and finally it
+outputs the value of C<$a>. Because the value container of C<$a> remains the
+original one, we can expect the response output to be C<hello>. The test result
+confirms this:
 
     :bash
     $ curl localhost:8080/foo
     a = [hello]
 
-If however, the C</bar> is requested directly, C<$a> still has an empty
-value because
-it is initialized in C<location /foo> only.
+But when accessing C</bar> directly from the client side, we will get an empty
+value for the C<$a> value, since this variable relies on C<location /foo> to
+get initialized.
 
-The example tells, when a request is being handled, even across multiple
-C<location> directives,
-its copy of Nginx variables has not been reconstructed. The concept of
-"internal jumps" is also
-worth of noting, that the built-in L<ngx_rewrite> module and its command
-L<ngx_rewrite/rewrite>
-can execute exactly the same kind of internal jump. To rewrite our example:
+It can be observed that during a request's lifetime, the copy
+of Nginx variable containers does not change at all even when Nginx goes across
+different C<location> configuration blocks. Here we also meet the concept of
+"internal redirections" for the first time and it's worth mentioning that, the
+L<ngx_rewrite/rewrite> directive of the L<ngx_rewrite> module can also be used
+to initiate "internal redirections". For instance, we can rewrite the example
+above with the L<ngx_rewrite/rewrite> directive as follows:
 
     :nginx
     server {
@@ -79,33 +85,30 @@ can execute exactly the same kind of internal jump. To rewrite our example:
         }
     }
 
+It's functionally equivalent to L<ngx_echo/echo_exec>. We will discuss the
+L<ngx_rewrite/rewrite> directive in more depth in later chapters, like
+initiating "external redirections" like C<301> and C<302>.
 
-Net effect has no differences with L<ngx_echo/echo_exec>. L<ngx_rewrite/rewrite>
-will
-be addressed more specifically later, for its usage in C<301> and C<302>
-redirects.
+To conclude, the lifetime of Nginx variable containers is indeed bound to the
+request being processed, and is irrelevant to C<location>.
 
-Again, we have asserted that Nginx variable's life time is bounded with
-the request being
-handled and it has nothing to do with C<location> directives.
+== Nginx Built-in Variables ==
 
-So far, the variables we have discussed are implicitly created by L<ngx_rewrite/set>.
-They
-are called "user defined variables" or simply "user variables". Besides
-variables defined
-by user, Nginx core and various Nginx modules can provide "pre-defined
-variables" or "builtin
-variables).
+The Nginx variables we have seen so far are all (implicitly) created by
+directives like L<ngx_rewite/set>. We usually call such variables "user-defined
+varaibles", or simply "user variables". There is also another kind of Nginx
+variables that are I<pre-defined> by either the Nginx core or Nginx modules.
+Let's call this kind of variables "built-in variables".
 
-Builtin variables are mostly used to provide request or response information.
-For instance
-builtin variable L<ngx_core/$uri>, declared by L<ngx_http_core> module,
-gives the URI of
-the request being handled (url-decoded and exclude request parameters).
-Another builtin
-variable L<ngx_core/$request_uri> gives the original request URI (url-encoded
-and include
-request parameter). Another example:
+=== $uri & $request_uri ===
+
+One common use of Nginx built-in variables is to retrieve various types of
+information about the current request or response. For instance, the built-in
+variable L<ngx_core/$uri> provided by L<ngx_http_core> is used to fetch the
+(decoded) URI of the current request, excluding any query-string arguments.
+Another example is the L<ngx_core/$request_uri> variable provided by the same
+module, which is used to fetch the raw, non-decoded form of the URI, including
+any query-string. Let's look at the following example.
 
     :nginx
     location /test {
@@ -113,11 +116,11 @@ request parameter). Another example:
         echo "request_uri = $request_uri";
     }
 
-for the sake of clearness, C<server> directive is omitted. As usual the
-server is listening
-on C<8080> port, the example prints Nginx builtin variables L<ngx_core/$uri>
-and L<ngx_core/$request_uri>
-in the response. Now let's send a request to C<test>:
+We omit the C<server> configuration block here for brevity. Just as all those
+samples above, we still listen to the C<8080> local port. In this example, we
+output both the L<ngx_core/$uri> and L<ngx_core/$request_uri> into the response
+body. Below is the result of testing this C</test> interface with different
+requests:
 
     :bash
     $ curl 'http://localhost:8080/test'
@@ -132,9 +135,16 @@ in the response. Now let's send a request to C<test>:
     uri = /test/hello world
     request_uri = /test/hello%20world?a=3&b=4
 
-There is another category of builtin variables, these variable names
-has the C<arg_> prefix, such as C<$arg_name>, its value is the url-encoded
-URI parameter C<name>, here is a finer example:
+=== Variables with Infinite Names ===
+
+There is another very common built-in variable that does not have a fixed
+variable name. Instead, It has I<infinite> variations. That is, all those
+variables whose names have the prefix C<arg_>, like C<$arg_foo> and
+C<$arg_bar>. Let's just call it the C<$arg_XXX> "variable group". For example,
+the C<$arg_name> variable is evaluated to the value of the C<name> URI argument
+for the current request. Also, the URI argument's value obtained here is not
+decoded yet, potentially containing C<%XX> sequences. Let's check out a
+complete example:
 
     :nginx
     location /test {
@@ -142,12 +152,13 @@ URI parameter C<name>, here is a finer example:
         echo "class: $arg_class";
     }
 
-We test C</test> with a few scenarios, each with different URL parameter
+Then we test this interface out with various different URI argument
+combinations:
 
     :bash
     $ curl 'http://localhost:8080/test'
-    name: 
-    class: 
+    name:
+    class:
 
     $ curl 'http://localhost:8080/test?name=Tom&class=3'
     name: Tom
@@ -157,22 +168,24 @@ We test C</test> with a few scenarios, each with different URL parameter
     name: hello%20world
     class: 9
 
-C<$arg_name> is case-insensitive, it matches to C<name> URL parameter
-and it matches the C<NAME> or C<Name> as well:
+In fact, C<$arg_name> does not only match the C<name> argument name, but also
+C<NAME> or even C<Name>. That is, the letter case does not matter here:
 
     $ curl 'http://localhost:8080/test?NAME=Marry'
     name: Marry
-    class: 
+    class:
 
     $ curl 'http://localhost:8080/test?Name=Jimmy'
     name: Jimmy
-    class: 
+    class:
 
-Nginx lower-cases all URL parameter keys before it declares those builtin
-variables.
+Behind the scene, Nginx just converts the URI argument names into the
+pure lower-case form before matching against the name specified by
+C<$arg_XXX>.
 
-A 3rd party module L<ngx_set_misc> and its command L<ngx_set_misc/set_unescape_uri>
-can execute URL decoding for string sequences like C<%XX>
+If you want to decode the special sequences like C<%20> in the URI argument
+values, then you could use the L<ngx_set_misc/set_unescape_uri> directive
+provided by the 3rd-party module L<ngx_set_misc>.
 
     :nginx
     location /test {
@@ -183,34 +196,46 @@ can execute URL decoding for string sequences like C<%XX>
         echo "class: $class";
     }
 
-Again:
+Let's check out the actual effect:
 
     :bash
     $ curl 'http://localhost:8080/test?name=hello%20world&class=9'
     name: hello world
     class: 9
 
-white space is decoded !
+The encoded space has indeed been decoded!
 
-As we can see, command L<ngx_set_misc/set_unescape_uri> is like command
-L<ngx_rewrite/set>
-has the capability of declare and initialize Nginx variables. Later on
-we will discuss more of
-the L<ngx_rewrite/set> module.
+Another thing that we can observe from this example is that the
+L<ngx_set_misc/set_unescape_uri> directive can also implicitly create Nginx
+user-defined variables, just like the L<ngx_rewrite/set> directive. We will
+discuss the
+L<ngx_set_misc> module in more detail in future chapters.
 
-Variables like L<$arg_XXX>, are declared specifically within Nginx core.
-3rd party module
-has no equivalent capabilities. There are similar category of variables,
-C<$cookie_XXX> to retrieve
-cookie, L<$http_XXX> the headers and L<$sent_http_XXX> response headers.
-Please reference
-official documentation of L<ngx_http_core> module for details.
+This type of variables like L<$arg_XXX> possesses infinite number of possible
+names, so they do not correspond to any value containers.
+Furthermore, such variables are handled in a very specific way within the Nginx
+core. It
+is thus not possible for 3rd-party modules to introduce such magical built-in
+variables of their own.
 
-Attention, many builtin variables are read-only. Such as the one we have
-lately introduced
-L<ngx_core/$uri> and L<ngx_core/$request_uri>. One must avoid to assign
-values to read-only variables,
-unless they enjoy surprises, for example:
+The Nginx core offers a lot of such built-in variables in addition to
+L<$arg_XXX>, like the L<$cookie_XXX> variable group for fetching HTTP cookie
+values, the L<$http_XXX> variable group for fetching request headers, as well
+as the L<$sent_http_XXX> variable group for retrieving response headers. We
+will not go into the details for each of them here. Interested readers can
+refer to the official documentation for the L<ngx_http_core> module.
+
+=== Writing to Built-in Variables ===
+
+All the user-defined variables are writable. Actually the way that we declare
+or create such variables so far is to use a configure directive, like
+L<ngx_rewrite/set>, that performs value assignment at request time. But it is
+I<not> necessarily the case for built-in variables.
+
+Most of the built-in variables are effectively I<read-only>, like the
+L<ngx_core/$uri> and L<ngx_core/$request_uri> variables that we just introduced
+earlier. Assignments to such read-only variables must always be avoided.
+Otherwise it will lead to unexpected consequences, for example,
 
     :nginx
     ? location /bad {
@@ -218,12 +243,11 @@ unless they enjoy surprises, for example:
     ?     echo $uri;
     ? }
 
-This problematic configuration dumps fatal error when Nginx is started
-and leaves absolute no clue:
+This problematic configuration just triggers a confusing error message when
+Nginx is started:
 
     [emerg] the duplicate "uri" variable in ...
 
-Attempt to write other read-only variables such as L<$arg_XXX> variables,
-can blow the Nginx
-process right away in a few particular releases.
+Attempts of writing to some other read-only built-in variables like L<$arg_XXX>
+will just lead to server crashes in some particular Nginx versions.
 
