@@ -58,7 +58,7 @@ code.block {
     background-color: #f9f9f9;
     padding: 5px;
     font-size: 95%;
-    position: fixed; left: 10px; top: 100px;
+    position: absolute; left: 10px; top: 100px;
   }
   .toc ul {
     padding-left: 24px;
