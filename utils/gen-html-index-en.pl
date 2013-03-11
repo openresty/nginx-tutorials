@@ -101,6 +101,41 @@ for my $infile (@ARGV) {
 
 $res .= "</section>\n";
 
+$res .= <<_EOC_;
+<script>
+function init_back_top() {
+    function _fn() {
+        var t = Math.max(document.documentElement.scrollTop, document.body.scrollTop);
+        if (t > 5) {
+            if (! show) {
+                show = true;
+                r.className = 'backtop-box-show';
+            }
+        } else {
+            if (show) {
+                show = false;
+                r.className = '';
+            }
+        }
+    }
+
+    var r = document.createElement('div');
+    document.body.appendChild(r);
+    r.innerHTML = '<div class="backtop-box"><b title="Jump to Top of Page">Top</b></div>';
+
+    var show = false;
+    r.onclick = function() {
+        window.scrollTo(0, 0);
+    };
+
+    window.onscroll = _fn;
+    window.onresize = _fn;
+}
+
+init_back_top();
+</script>
+_EOC_
+
 $res .= "</body></html>";
 
 if ($outfile) {
