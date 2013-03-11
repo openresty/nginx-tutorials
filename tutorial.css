@@ -70,14 +70,14 @@ code.block {
   .content .con-title .anchor {
     opacity: 0;
     font-family: 'Octicons Regular';
-    color: blue; text-decoration: none; font-size: .8em;
+    color: #4787ed; text-decoration: none; font-size: .8em;
   }
   .content .con-title:hover .anchor {
     opacity: 1;
   }
   .content .con-title:target .anchor {
     opacity: 1;
-    color: red;
+    color: #222;
   }
 }
 
