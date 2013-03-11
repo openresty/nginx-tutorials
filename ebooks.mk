@@ -47,8 +47,8 @@ html: $(name).html
 	    --title "$(title)" --publisher 'agentzh' \
 	    --language $(lang2) --authors 'agentzh'
 
-$(name).html: $(htmlfiles)
-	./utils/gen-html-index-$(lang2).pl -v $(ver) -o $@ $^
+$(name).html: $(htmlfiles) ./utils/gen-html-index-$(lang2).pl
+	./utils/gen-html-index-$(lang2).pl -v $(ver) -o $@ $(htmlfiles)
 
 html/%.html: wiki/%.wiki ./utils/wiki2html-$(lang2).pl
 	mkdir -p $(dir $@)
