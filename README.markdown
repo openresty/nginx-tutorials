@@ -1,13 +1,13 @@
 This repository holds the source scripts for my Nginx tutorial series
 published here:
 
-    http://openresty.org/download/agentzh-nginx-tutorials-en.html
+http://openresty.org/download/agentzh-nginx-tutorials-en.html
 
 Versions in other languages are expected to be maintained by the community.
 
 Pre-generated e-books can be downloaded directly from here:
 
-    http://openresty.org/#eBooks
+http://openresty.org/#eBooks
 
 How to generate HTML and other ebook format files on your side:
 
