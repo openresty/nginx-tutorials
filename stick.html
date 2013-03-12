@@ -1,0 +1,137 @@
+
+        <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+        <script>
+          $.getScrollOffsets = function(w, d) {
+            w = window;
+            d = document;
+            if (w.pageXOffset != null) {
+              return {x: w.pageXOffset, y:w.pageYOffset};
+            }
+
+            if (document.compatMode == "CSS1Compat") {
+              return {x:d.documentElement.scrollLeft, y:d.documentElement.scrollTop};
+            }
+
+            return { x: d.body.scrollLeft, y: d.body.scrollTop };
+          };
+
+          $.getViewportSize = function(w, d) {
+            w = window;
+            d = document;
+            if (w.innerWidth != null) {
+              return {w: w.innerWidth, h: w.innerHeight};
+            }
+
+            if (document.compatMode == "CSS1Compat") {
+              return { w: d.documentElement.clientWidth,
+                h: d.documentElement.clientHeight };
+            }
+
+            return { w: d.body.clientWidth, h: d.body.clientWidth };
+          };
+
+          $(function() {
+
+function ratelimit(ms, keepFresh, fn) {
+    var last = (new Date()).getTime(),
+        lastCallArgs,
+        exec;
+
+    exec = keepFresh ? function (now, args) {
+        last = now;
+        fn.apply(null, args);
+        lastCallArgs = null;
+
+        setTimeout(function () {
+            if (last > now || !lastCallArgs) {
+                return;
+            }
+
+            exec((new Date()).getTime(), lastCallArgs);
+        }, ms);
+    } : function (now, args) {
+        last = now;
+        fn.apply(null, args);
+    };
+
+    return function() {
+        var now = (new Date()).getTime();
+        if (keepFresh) {
+            lastCallArgs = arguments;
+        }
+        if (now - last > ms) {
+            exec(now, arguments);
+        }
+    };
+}
+
+            var $toc = $('.toc'),
+                lastTop = $.getScrollOffsets().y,
+                tocH = $toc.outerHeight(),
+                delay = 200,
+
+                POS_ABS = 1, POS_FIXED = 2,
+                tocPos = POS_ABS,
+                tocTop = 100,
+
+                offset = 10,
+                rangeT = 100,
+                rangeB = $(document.body).height() - 10;
+
+            $(document).scroll(ratelimit(delay, true, function(ev) {
+              var top = $.getScrollOffsets().y;
+
+              if (top == lastTop) {
+                return;
+              }
+
+              // page go up
+              if (top > lastTop) {
+                if (tocPos == POS_ABS) {
+                  if ((top < rangeB) && (top + $.getViewportSize().h >= tocTop + tocH + offset)) {
+                    tocPos = POS_FIXED;
+                    tocTop = $.getViewportSize().h - tocH - offset;
+                    $toc.css({
+                      position: 'fixed',
+                      top: tocTop
+                    });
+                  }
+                } else {
+                  if ((top > rangeB) || (tocTop > $.getViewportSize().h - tocH - offset)) {
+                    tocPos = POS_ABS;
+                    tocTop = top + tocTop;
+                    $toc.css({
+                      position: 'absolute',
+                      top: tocTop
+                    });
+                  }
+                }
+
+              // page go down
+              } else {
+                if (tocPos == POS_FIXED) {
+                  if ((top < rangeT) || (tocTop < offset)) {
+                    tocPos = POS_ABS;
+                    tocTop = top + tocTop;
+                    $toc.css({
+                      position: 'absolute',
+                      top: tocTop
+                    });
+                  }
+                } else {
+                  if ((top > rangeT) && (top < tocTop + offset)) {
+                    tocPos = POS_FIXED;
+                    tocTop = offset;
+                    $toc.css({
+                      position: 'fixed',
+                      top: tocTop
+                    });
+                  }
+                }
+              }
+
+              lastTop = top;
+            }));
+          });
+        </script>
+
