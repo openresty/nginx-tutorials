@@ -42,7 +42,7 @@ it. This is required by the language syntax: whenever we want to reference an
 Nginx variable in the configuration file, we must add a C<$> prefix. This looks
 very familiar to those Perl and PHP programmers.
 
-Such variable prefix modifiers may discomfort some C<Java> and C<C#>
+Such variable prefix modifiers may discomfort some Java and C#
 programmers, this notation does have an
 obvious advantage though, that is, variables can be embedded directly into a
 string literal:

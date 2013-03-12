@@ -40,19 +40,19 @@ end user could usually observe the change of the URL in her web browser's
 address bar while this is not the case for internal ones. "Internal
 redirections"
 are very similar to the C<exec> command in
-C<Bourne Shell> (or C<Bash>); it is a "one way trip" and never returns. Another
-similar example is the C<goto> statement in the C<C> language.
+Bourne Shell; it is a "one way trip" and never returns. Another
+similar example is the C<goto> statement in the C language.
 
 Being an "internal redirection", the request after the redirection
 remains the original one. It is just the current C<location> that is changed,
 so we are still using the original copy of the Nginx variable containers. Back
-to our example, the whole workflow is like this: Nginx first assigns to the
+to our example, the whole process looks like this: Nginx first assigns to the
 C<$a> variable the string value C<hello> via the L<ngx_rewrite/set> directive
 in C<location /foo>, and then it issues an internal redirection via the
 L<ngx_echo/echo_exec> directive, thus leaving C<location /foo> and entering
 C<location /bar>, and finally it
-outputs the value of C<$a>. Because the value container of C<$a> remains the
-original one, we can expect the response output to be C<hello>. The test result
+outputs the value of C<$a>. Because the value container of C<$a> remains
+untouched, we can expect the response output to be C<hello>. The test result
 confirms this:
 
     :bash
@@ -60,13 +60,14 @@ confirms this:
     a = [hello]
 
 But when accessing C</bar> directly from the client side, we will get an empty
-value for the C<$a> value, since this variable relies on C<location /foo> to
+value for the C<$a> variable, since this variable relies on C<location /foo> to
 get initialized.
 
 It can be observed that during a request's lifetime, the copy
 of Nginx variable containers does not change at all even when Nginx goes across
-different C<location> configuration blocks. Here we also meet the concept of
-"internal redirections" for the first time and it's worth mentioning that, the
+different C<location> configuration blocks. Here we also encounter the concept
+of
+"internal redirections" for the first time and it's worth mentioning that the
 L<ngx_rewrite/rewrite> directive of the L<ngx_rewrite> module can also be used
 to initiate "internal redirections". For instance, we can rewrite the example
 above with the L<ngx_rewrite/rewrite> directive as follows:
@@ -105,10 +106,10 @@ Let's call this kind of variables "built-in variables".
 One common use of Nginx built-in variables is to retrieve various types of
 information about the current request or response. For instance, the built-in
 variable L<ngx_core/$uri> provided by L<ngx_http_core> is used to fetch the
-(decoded) URI of the current request, excluding any query-string arguments.
+(decoded) URI of the current request, excluding any query string arguments.
 Another example is the L<ngx_core/$request_uri> variable provided by the same
 module, which is used to fetch the raw, non-decoded form of the URI, including
-any query-string. Let's look at the following example.
+any query string. Let's look at the following example.
 
     :nginx
     location /test {
@@ -140,10 +141,10 @@ requests:
 There is another very common built-in variable that does not have a fixed
 variable name. Instead, It has I<infinite> variations. That is, all those
 variables whose names have the prefix C<arg_>, like C<$arg_foo> and
-C<$arg_bar>. Let's just call it the C<$arg_XXX> "variable group". For example,
+C<$arg_bar>. Let's just call it the L<$arg_XXX> "variable group". For example,
 the C<$arg_name> variable is evaluated to the value of the C<name> URI argument
 for the current request. Also, the URI argument's value obtained here is not
-decoded yet, potentially containing C<%XX> sequences. Let's check out a
+decoded yet, potentially containing the C<%XX> sequences. Let's check out a
 complete example:
 
     :nginx
@@ -152,7 +153,7 @@ complete example:
         echo "class: $arg_class";
     }
 
-Then we test this interface out with various different URI argument
+Then we test this interface with various different URI argument
 combinations:
 
     :bash
@@ -181,7 +182,7 @@ C<NAME> or even C<Name>. That is, the letter case does not matter here:
 
 Behind the scene, Nginx just converts the URI argument names into the
 pure lower-case form before matching against the name specified by
-C<$arg_XXX>.
+L<$arg_XXX>.
 
 If you want to decode the special sequences like C<%20> in the URI argument
 values, then you could use the L<ngx_set_misc/set_unescape_uri> directive
@@ -203,7 +204,7 @@ Let's check out the actual effect:
     name: hello world
     class: 9
 
-The encoded space has indeed been decoded!
+The space has indeed been decoded!
 
 Another thing that we can observe from this example is that the
 L<ngx_set_misc/set_unescape_uri> directive can also implicitly create Nginx
@@ -225,7 +226,7 @@ as the L<$sent_http_XXX> variable group for retrieving response headers. We
 will not go into the details for each of them here. Interested readers can
 refer to the official documentation for the L<ngx_http_core> module.
 
-=== Writing to Built-in Variables ===
+=== Read-only Built-in Variables ===
 
 All the user-defined variables are writable. Actually the way that we declare
 or create such variables so far is to use a configure directive, like
