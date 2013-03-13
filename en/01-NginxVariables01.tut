@@ -1,6 +1,6 @@
 = Nginx Variables (01) =
 
-== String Container ==
+== Variables as Value Containers ==
 
 Nginx's configuration files use a micro programming language. Many real-world
 Nginx configuration files are essentially small programs.

@@ -17,7 +17,7 @@
             set $orig_foo $foo;
             set $args debug;
 
-            echo "orginal foo: $orig_foo";
+            echo "original foo: $orig_foo";
             echo "foo: $foo";
         }
     }

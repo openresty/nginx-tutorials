@@ -1,8 +1,12 @@
 = Nginx Variables (04) =
 
-Even if a Nginx variable is hooked with "get handler", it can opt-in to
-use the value container as cache, so that when a variable is read multiple
-times, "get handler" is executed only once.Here is an example:
+== Value Containers for Caching & ngx_map ==
+
+Some Nginx variables choose to use their value containers as a data cache when
+the "get handler" is configured. In this setting, the "get handler" is run only
+once, i.e., at the first time the variable is read, which reduces overhead when
+the variable is read multiple times during its lifetime. Let's see an example
+for this.
 
     :nginx
     map $args $foo {
@@ -17,19 +21,26 @@ times, "get handler" is executed only once.Here is an example:
             set $orig_foo $foo;
             set $args debug;
 
-            echo "orginal foo: $orig_foo";
+            echo "original foo: $orig_foo";
             echo "foo: $foo";
         }
     }
 
-Module L<ngx_map> and its command L<ngx_map/map> is new, let me explain.
-command L<ngx_map/map> in Nginx defines the mapping in between two Nginx
-variables. Back to our example, command L<ngx_map/map> defines the mapping
-from builtin variable L<ngx_core/$args> to user variable C<$foo>, in other
-words, the value of C<$foo> is decided by the value of L<ngx_core/$args>
-with the given mapping.
+Here we use the L<ngx_map/map> directive from the standard module L<ngx_map>
+for the first time, which deserves some introduction. The word C<map> here
+means mapping or correspondence. For example, functions in Maths are a kind of
+"mapping". And Nginx's L<ngx_map/map> directive is used to define a "mapping"
+relationship between two Nginx variables, or in other words, "function
+relationship". Back to this example, we use the L<ngx_map/map> directive to
+define the "mapping" relationship between user variable C<$foo> and built-in
+variable L<ngx_core/$args>. When using the Math function notation, C<y = f(x)>,
+our C<$args> variable is effectively the "independent variable", C<x>, while
+C<$foo> is the "dependent variable", C<y>. That is, the value of C<$foo>
+depends on the value of L<ngx_core/$args>, or rather, we I<map> the value of
+L<ngx_core/$args> onto the C<$foo> variable (in some way).
 
-What exactly our mapping is defined as ?
+Now let's look at the exact mapping rule defined by the L<ngx_map/map>
+directive in this example.
 
     :nginx
     map $args $foo {
@@ -37,121 +48,128 @@ What exactly our mapping is defined as ?
         debug       1;
     }
 
-C<default>, found in the first line within curly bracket, defines the
-default mapping rule. It means if no other rules can be applied, mapping
-executes the default one, which assigns variable C<$foo> with value C<0>.
-The second line in the curly bracket defines another rule, which assigns
-variable C<$foo> with value C<1> when builtin variable L<ngx_core/$args>
-equals to string C<debug>. Therefore, variable C<$foo> is either C<0> or
-C<1>,
-up to whether L<ngx_core/$args> equals to string C<debug>.
+The first line within the curly braces is a special rule condition, that is,
+this condition holds if and only if other conditions all fail. When this
+"default" condition holds, the "dependent variable" C<$foo> is assigned by the
+value C<0>. The second line within the curly braces means that the "dependent
+variable" C<$foo> is assigned by the value C<1> if the "independent variable"
+C<$args> matches the string value C<debug>. Combining these two lines, we
+obtain the following complete mapping rule: if the value of L<ngx_core/$args>
+is C<debug>, variable C<$foo> gets the value C<1>; otherwise C<$foo> gets the
+value C<0>. So essentially, this is a conditional assignment to the variable
+C<$foo>.
 
-It's cleared enough. Back to our C<location /test>, we saved the value
-of
-C<$foo> to another user variable C<$orig_foo> and forcefully overwrite
-the
-value of L<ngx_core/$args> as C<debug>. At last, we print both C<$orig_foo>
-and C<$foo> using L<ngx_echo/echo>.
+Now that we understand what the L<ngx_map/map> directive does, let's look at
+the definition of C<location /test>. We first save the value of C<$foo> into
+another user variable C<$orig_foo>, then overwrite the value of
+L<ngx_core/$args> to C<debug>, and finally output the values of C<$orig_foo>
+and C<$foo>, respectively.
 
-When L<ngx_core/$args> is forcefully overwritten as C<debug>, we might
-have
-thought C<$foo> has the value C<1> according to our L<ngx_map/map> mappings,
-but testing defeats us:
+Intuitively, after we overwrite the value of L<ngx_core/$args> to C<debug>, the
+value of C<$foo> should automatically get adjusted to C<1> according to the
+mapping rule defined earlier, regardless of the original value of C<$foo>. But
+the test result suggests the other way around.
 
     :bash
     $ curl 'http://localhost:8080/test'
     original foo: 0
     foo: 0
 
-As expected, C<$orig_foo> is C<0>, since the request has no URL parameters
-and
-L<ngx_core/$args> is empty, our default mapping rule is effective, and
-C<$foo>
-gets its value C<0>.
+The first output line indicates that the value of C<$orig_foo> is C<0>, which
+is exactly what we expected: the original request does not take a URL query
+string, so the initial value of L<ngx_core/$args> is empty, leading to the C<0>
+initial value of C<$foo>, according to the "default" condition in our mapping
+rule.
 
-But the second output appears confusing, as L<ngx_core/args> is already
-overwritten
-as C<debug>, our mapping rule should have assigned variable C<$foo> with
-value C<1>,
-what's wrong?
+But surprisingly, the second output line indicates that the final value of
+C<$foo> is still C<0>, even after we overwrite L<ngx_core/$args> to the value
+C<debug>. This apparently violates our mapping rule because when
+L<ngx_core/$args> takes the value C<debug>, the value of C<$foo> should really
+be C<1>. So what is happening here?
 
-The reason is simple, when variable C<$foo> is needed the first time, its
-calculated
-value from the mapping algorithm is cached, as being said, Nginx module
-can opt-in to
-use value container as cache for the outcome of its "get handler". Apparently,
-L<ngx_map>
-caches the outcome to avoid further expensive calculation, so that Nginx
-can use the cached
-result for that variable in the subsequent handling for free.
+Actually the reason is pretty simple: when the first time variable C<$foo> is
+read, its value computed by L<ngx_map>'s "get handler" is
+cached in its value container. We already learned earlier that Nginx modules
+may choose to use the value container of the variable created by themselves as
+a data cache for its "get handler". Obviously, the L<ngx_map> module considers
+the mapping computation between variables expensive enough and caches the result
+automatically, so that the next time the same variable is read within the
+lifetime of the current request, Nginx can just return the cached result
+without invoking the "get handler" again.
 
-To verify this, we request again with an URL parameter C<debug>:
+To verify this further, we can try specifying the URL query string as C<debug>
+in the original request.
 
     :bash
     $ curl 'http://localhost:8080/test?debug'
     original foo: 1
     foo: 1
 
-Granted, the value of C<$orig_foo> becomes C<1>. Since builtin variable
-L<ngx_core/$args>
-equals C<debug>, according to the mapping rule, variable C<$foo> is calculated
-as C<1>, and
-the calculation result is cached and remains as C<1> no matter how L<ngx_core/$args>
-will
-be modified subsequently.
+It can be seen that the value of C<$orig_foo> becomes C<1>, complying with our
+mapping rule. And subsequent readings of C<$foo> always yield the same cached
+result, C<1>, regardless of the new value of L<ngx_core/$args> later on.
 
-Command L<ngx_map/map> is really more than what it looks, the command actually
-hooks a
-"get handler" for user variables, and exposes the script interface so that
-exact devalue
-logic can be easily modified by user themselves. The price of doing this,
-is to restrict
-the logic be the mapping from one variable to another. Meanwhile, let's
-recall what we've
-learnt back in L<vartut/ (03)>, even if a variable is devalued by a "get
-handler", it does
-not necessarily uses a value container as cache, such as the L<$arg_XXX>
-variables.
+The L<ngx_map/map> directive is actually a unique example, because it not only
+registers a "get handler" for the user variable, but also allows the user to
+define the computing rule in the "get handler" directly in the Nginx
+configuration file. Of course, the rule that can be defined here is limited to
+simple mapping relations with another variable. Meanwhile, it must be made
+clear that not all the variables using a "get handler" will cache the result.
+For instance, we have already seen earlier that the L<$arg_XXX> variable does
+not use its value container at all.
 
-Just like module L<ngx_map>, another builtin module L<ngx_geo> uses cache
-for variables.
+Similar to the L<ngx_map> module, the standard module L<ngx_geo> that we
+encountered earlier also enables value caching for the variables created by its
+L<ngx_geo/geo> directive.
 
-We should have noticed that command L<ngx_map/map> is written in front
-of C<server>
-directive, i.e. the mappings are defined directly within C<http>. Is it
-possible to
-write it within a C<location> directive since it is used only in C<location
-/test> in
-our example, the answer is no !
+=== A Side Note for Use Contexts of Directives ===
 
-People who have just learnt Nginx, would argue this global configuration
-of
-mappings by L<ngx_map/map>, is likely to be inefficient since request to
-every C<location>
-will cause the mapping be repeatedly calculated. Have no worry and let us
-review,
-command L<ngx_map/map> actually defines a "get handler" for a user variable,
-the
-get handler is only executed when the variable needs to be devalued (if
-cache is used, the
-handler is executed once for all), therefore, for those requests to certain
-C<location>
-which has not used the variable, no calculation will be triggered.
+In the previous example, we should also note that the L<ngx_map/map> directive
+is put outside the C<server> configuration block, that is, it is defined
+directly within the outermost C<http> configuration block. Some readers may be
+curious about this setting, since we only use it in C<location /test> after
+all. If we try putting the L<ngx_map/map> statement within the C<location>
+block, however, we will get the following error while starting Nginx:
 
-The technique, which only calculates till the needed moment, is called
-"lazy evaluation" in
-computing. "Lazy  evaluation", contrary to "eager evaluation", is not natively
-supported by
-most programming languages, a classic one who does is Haskell. In the mini
-language of Nginx,
-"eager evaluation" is far more common, such as following statement using
-L<ngx_rewrite/set>:
+    [emerg] "map" directive is not allowed here in ...
+
+So it is explicitly prohibited. In fact, it is only allowed to use the
+L<ngx_map/map> directive in the C<http>
+block. Every configure directive does have a pre-defined set of use contexts in
+the configuration file. When in doubt, always refer to the corresponding
+documentation for the exact use contexts of a particular directive.
+
+== Lazy Evaluation of Variable Values ==
+
+Many Nginx freshmen would worry that the use of the L<ngx_map/map> directive
+within the global scope (i.e., the C<http> block) will lead to unnecessary
+variable value computation and assignment for all the C<location>s in all the
+virtual servers even if only one C<location> block actually uses it.
+Fortunately, this is I<not> what is happening here. We have already learned how
+the L<ngx_map/map>
+directive works. It is the "get handler" (registered by the L<ngx_map> module)
+that performs the value computation and related assignment. And the "get
+handler" will not run at all
+unless the corresponding user variable is actually being read. Therefore, for
+those requests that never access that variable, there cannot be any (useless)
+computation involved.
+
+The technique that postpones the value computation off to the point where the
+value is actually needed is called "lazy evaluation" in the computing world.
+Programming languages natively offering "lazy evaluation" is not very
+common though. The most famous example is the Haskell programming language,
+where lazy evaluation is the default semantics. In contrast with "lazy
+evaluation", it is much more common to see "eager evaluation". We are lucky
+to see examples of lazy evaluation here in the L<ngx_map> module, but
+the "eager evaluation" semantics is also much more common in the Nginx
+world. Consider the following L<ngx_rewrite/set> statement that cannot be
+simpler:
 
     :nginx
     set $b "$a,$a";
 
-When variable C<$b> is declared by command L<ngx_rewrite/set>, the value
-of C<$b> is computed right away, the calculation won't be delayed
-till
-variable C<$b> needs to be devalued.
+When running the L<ngx_rewrite/set> directive, Nginx eagerly
+computes and assigns the new value for the variable C<$b> without postponing to
+the point when C<$b> is actually read later on. Similarly, the
+L<ngx_set_misc/set_unescape_uri> directive also evaluates eagerly.
 
