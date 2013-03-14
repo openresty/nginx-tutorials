@@ -1,20 +1,21 @@
 = Nginx Variables (06) =
 
-There are a few subtleties with Nginx builtin variable in the context of
-subrequest.
+== Built-in Variables in Subrequests ==
 
-We have learnt from L<vartut/ (03)>, many builtin variables are not simple
-value
-containers, they become special because the variables are hooked with "
-get/set handler".
-Even if a value container can be opt-in, it is used as cache to avoid repeated
-calculations.
-L<ngx_core/$args> is such a variable, it uses "get/set handler" to calculate
-the URL
-parameter string for the current request. When it is a subrequest, L<ngx_core/$args>
-should be calculated accordingly and return the subrequest's URL parameter
-string. We
-can check it with following example:
+There are some subtleties involved in using Nginx built-in variables in the
+context of a subrequest. We will discuss the details in this section.
+
+=== Built-in Variables Sensitive to the Subrequest Context ===
+
+We already know that most built-in variables are not simple value containers.
+They behave differently than user variables by registering "get
+handlers" and/or "set handlers". Even when they do own a value container, they
+usually just use the container as a result cache for their "get handlers". The
+L<ngx_core/$args> variable we discussed earlier, for example, just uses its
+"get handler" to return the URL query string for the current request. The
+current request here can also be a subrequest, so when reading
+L<ngx_core/$args> in a subrequest, its "get handler" should naturally return
+the query string for the subrequest. Let's see such an example:
 
     :nginx
     location /main {
@@ -26,30 +27,28 @@ can check it with following example:
         echo "sub args: $args";
     }
 
-We print the value of variable L<ngx_core/$args> in C<location /main> by
-command
-L<ngx_echo/echo>, then we issue a subrequest to C<location /sub> by command
-L<ngx_echo/echo_location>.
-You might have noticed that the subrequest is given a second parameter,
-which designates
-the URL parameters (C<a=1&b=2>). Again in C<location /sub> directive, the
-value of L<ngx_core/$args>
-is printed.
+Here in the C</main> interface, we first echo out the value of
+L<ngx_core/$args> for the current request, and then use
+L<ngx_echo/echo_location> to initiate a subrequest to C</sub>. It should be
+noted that here we give a second argument to the L<ngx_echo/echo_location>
+directive, to specify the URL query string for the subrequest being fired (the
+first argument is the URI for the subrequest, as we already know). Finally, we
+define  the C</sub> interface and print out the value of L<ngx_core/$args> in
+there. Querying the C</main> interface gives
 
     :bash
     $ curl 'http://localhost:8080/main?c=3'
     main args: c=3
     sub args: a=1&b=2
 
-Clearly, L<ngx_core/$args> prints C<c=3> in C<location /main>, which is
-the URL parameter for the
-main request. And it prints C<a=1&b=2> in C<location /sub>, which is the
-URL parameter for the subrequest.
-These are exactly what we were expecting.
+It is clear that when L<ngx_core/$args> is read in the main request (to
+C</main>), its value is the URL query string of the main request; whereas when
+in the subrequest (to C</foo>), it is the query string of the subrequest,
+C<a=1&b=2>. This behavior indeed matches our intuition.
 
-Just like L<ngx_core/$args>, builtin variable L<ngx_core/$uri> is calculated
-as subrequest's URI in
-subrequest context.
+Just like L<ngx_core/$args>, when the built-in variable L<ngx_core/$uri> is
+used in a subrequest, its "get handler" also returns the (decoded) URI of the
+current subrequest:
 
     :nginx
     location /main {
@@ -61,27 +60,26 @@ subrequest context.
         echo "sub uri: $uri";
     }
 
-Sending request to C<location /main> we have:
+Below is the result of querying C</main>:
 
     :bash
     $ curl 'http://localhost:8080/main'
     main uri: /main
     sub uri: /sub
 
-The result is what we'd expected.
+The output is what we would expect.
 
-Reality is imperfect, not all the builtin variable is calculated from current
-request, a minority of builtin variables only calculate their values from
-the
-main request. Builtin variable L<ngx_core/$request_method>, provided by
-module
-L<ngx_http_core>, is one of them.
+=== Built-in Variables for Main Requests Only ===
 
-When variable L<ngx_core/$request_method> is devalued, the HTTP method
-of "main
-request" is always obtained. The HTTP method can be C<GET>, C<POST> etc,
-let's
-test it:
+Unfortunately, not all built-in variables are sensitive to the  context of
+subrequests. Several built-in variables always act on the main request even
+when they are used in a subrequest. The built-in variable
+L<ngx_core/$request_method> is such an exception.
+
+Whenever L<ngx_core/$request_method> is read, we always get the request method
+name (such as C<GET> and C<POST>) for the main request, no matter whether the
+current request is a
+subrequest or not. Let's test it out:
 
     :nginx
     location /main {
@@ -93,39 +91,39 @@ test it:
         echo "sub method: $request_method";
     }
 
-For this case, variable L<ngx_core/$request_method> is printed in both
-C<location /main> and C<location /sub>. Subrequest is initiated to C<location
-/sub>
-from within C<location /main> by L<ngx_echo/echo_location>. Again we use
-the C<curl> utility to send a C<POST> request to C<location /main>
+In this example, the C</main> and C</sub> interfaces both output the value of
+L<ngx_core/$request_method>. Meanwhile, we initiate a C<GET> subrequest to
+C</sub> via the L<ngx_echo/echo_location> directive in C</main>. Now let's do a
+C<POST> request to C</main>:
 
     :bash
     $ curl --data hello 'http://localhost:8080/main'
     main method: POST
     sub method: POST
 
-Command C<curl> has a C<--data> option, which designates the request data,
-meanwhile it lets the request use HTTP method C<POST>. The test shows no
-surprises, no matter where L<ngx_core/$request_method> is devalued, the
-HTTP method of main request is obtained: C<POST>.
+Here we use the C<--data> option of the C<curl> utility to specify our POST
+request body, also this option makes C<curl> use the C<POST>
+method for the request. The test result turns out as we predicted:
+the variable L<ngx_core/$request_method> is evaluated to the main request's
+method name, C<POST>, despite its use in a C<GET> subrequest.
 
-Hey, would it be the case where variables are devalued and cached for variable
-L<ngx_core/$request_method> ? so that it is calculated in "main request"
-and
-referenced again in the "subrequest" ? Think again. We have learnt back
-in
-L<vartut/ (05)>, each request has its own copies of variables. Module L<ngx_echo>
-fully respects this rule and the subrequest it initiates forbids the variable
-referencing its counterpart in parent request. So back to our example,
-even if
-the calculation has been cached (in fact nothing is cached here), it shall
-have
-no impact on the variables on subrequest to C<location /sub>.
+Some readers might challenge our conclusion here by pointing out that we did
+not rule out the possibility that the value of L<ngx_core/$request_method> got
+cached at its first reading in the main request and what we were seeing in the
+subrequest was actually the cached value that was evaluated earlier in the main
+request. This concern is unnecessary, however, because we have also learned
+that the variable container required by data caching (if any) is always bound
+to the
+current request, also the subrequests initiated by the L<ngx_echo> module
+always disable variable container sharing with their parent requests.
+Back to the previous example, even if the built-in variable
+L<ngx_core/$request_method> in the main request used the value container as the
+data cache (actually it does not), it cannot affect the subrequest by any means.
 
-We can adjust our example a little bit, i.e. to print L<ngx_core/$request_method>
-after the subrequest has been initiated in C<location /main>. This helps
-answering
-above question.
+To further address the concern of these readers, let's slightly modify the
+previous example by putting the L<ngx_echo/echo> statement for
+L<ngx_core/$request_method> in C</main> I<after> the L<ngx_echo/echo_location>
+directive that runs the subrequest:
 
     :nginx
     location /main {
@@ -137,21 +135,22 @@ above question.
         echo "sub method: $request_method";
     }
 
-Test again:
+Let's test it again:
 
     :bash
     $ curl --data hello 'http://localhost:8080/main'
     sub method: POST
     main method: POST
 
-The result is almost same as before, except the ordering of prints has
-been reversed for parent request and subrequest. (because we reversed the
-statements in C<location /main>.
+No change in the output can be observed, except that the two output lines
+reversed the order (since we exchange the order of those two L<ngx_echo>
+module's directives).
 
-So we cannot correctly retrieve the HTTP method of subrequest by evaluating
-L<ngx_core/$request_method>, yet we can use 3rd party module L<ngx_echo>
-and
-its variable L<ngx_echo/$echo_request_method> for the purpose.
+Consequently, we cannot obtain the method name of a subrequest by reading the
+L<ngx_core/$request_method> variable. This is a common pitfall for freshmen
+when dealing with method names of subrequests. To overcome this limitation, we
+need to turn to the built-in variable L<ngx_echo/$echo_request_method> provided
+by the L<ngx_echo> module:
 
     :nginx
     location /main {
@@ -163,30 +162,32 @@ its variable L<ngx_echo/$echo_request_method> for the purpose.
         echo "sub method: $echo_request_method";
     }
 
-Finally this is what we'd have wanted:
+We are finally getting what we want:
 
     :bash
     $ curl --data hello 'http://localhost:8080/main'
     main method: POST
     sub method: GET
 
-So parent request prints C<POST>, and subrequest prints C<GET>. Each
-reflects its own HTTP method.
+Now within the subrequest, we get its own method name, C<GET>, as expected, and
+the main request method remains C<POST>.
 
-Builtin variable L<ngx_core/$request_uri>, like L<ngx_core/$request_method>,
-always returns the encoded URL of "main request" no matter the context
-it
-is evaluated. This is normal since subrequests are Nginx internal abstractions
-in which an encoded request URL has no specific meanings.
+Similar to L<ngx_core/$request_method>, the built-in variable
+L<ngx_core/$request_uri> also always returns the (non-decoded) URL for the main
+request. This is more understandable, however, because subrequests are
+essentially faked requests inside Nginx, which do not really take a non-decoded
+raw URL.
 
-If it were the case you would have worried, that builtin variable is cached
-in between parent request and subrequests, it is as bitter as hell. Since
-we
-have already learnt in L<vartut/ (05)> that module L<ngx_auth_request>
-allows
-its subrequest to share the same copy of variables with its parent request,
-let's
-have guts for the following dreadful case:
+=== Variable Container Sharing and Value Caching Together ===
+
+In the previous section, some of the readers were worried about the case that
+variable container sharing in subrequests and value caching for variable's "get
+handlers" were working together. If it were indeed the case, then it would be a
+nightmare because it would be really really hard to predict what is going on by
+just looking at the configuration file. In previous sections, we already
+learned that the subrequests initiated by the L<ngx_auth_request> module are
+sharing the same variable containers with their parents, so we can maliciously
+construct such a horrible example:
 
     :nginx
     map $uri $tag {
@@ -208,36 +209,33 @@ have guts for the following dreadful case:
         }
     }
 
-Our old friend L<ngx_map/map> defines mapping rules from builtin variable
-L<ngx_core/$uri> to user variable C<$tag>. The rules are: C<$tag> is 1
-if
-L<ngx_core/$uri> is C</main>, 2 if it is C</sub>, 0 for all the other cases.
-Then subrequest is initiated to <location /sub> by using module L<ngx_auth_requst>
-and its command L<ngx_auth_request/auth_request>. After the subrequest
-is
-handled, variable C<$tag> is printed. Guess what happens on the output
-if
-we request to C<location /main> ?
+Here we use our old friend, the L<ngx_map/map> directive, to map the value of
+the built-in variable L<ngx_core/$uri> to our user variable C<$tag>. When
+L<ngx_core/$uri> takes the value C</main>, the value C<1> is assigned to
+C<$tags>; when L<ngx_core/$uri> takes the value C</sub>, the value C<2> is
+assigned instead to C<$tags>; under all the other conditions, C<0> is assigned.
+Next, in C</main>, we first initiate a subrequest to C</sub> by using the
+L<ngx_auth_request/auth_request> directive, and then output the value of
+C<$tag>. And within C</sub>, we directly output the value of C<$tag>. Guess
+what we will get when we access C</main>?
 
     $ curl 'http://localhost:8080/main'
     main tag: 2
 
-eh ? did the mapping rules says C<$tag> is 1 when L<ngx_core/$uri> is C</main>
-?
-why it is 2 as if </sub> is requested ?
+Ouch! Didn't we map the value C</main> to C<1>? Why the actual output for
+C</main> is the value, C<2>, for C</sub>? What is going on here?
 
-Hold on, this is because variable C<$tag> is first devalued in subrequest
-to C</sub>,
-it is mapped as C<2> under that context (L<ngx_core/$uri> becomes C<sub>,
-so mapping rule
-deducts the value accordingly as C<2>). Mapping result is cached, even
-worse, the subrequest
-initiated by L<ngx_auth_request/auth_request> shares the same copy of variables
-in between
-parent and subrequests. So Nginx returns the cached value C<2> when variable
-C<$tag> is
-devalued back in the parent request. What a big deal.
+Actually it worked like this: our C<$tag> variable was first read in the
+subrequest to C</sub>, and the "get handler" registered by L<ngx_map/map>
+computed the value C<2> for C<$tag> in that context (because L<ngx_core/$uri>
+was C</sub> in the subrequest) and the value C<2> got cached in the value
+container of C<$tag> from then on. Because the parent request shared the same
+container as the subrequest created by L<ngx_auth_request/auth_request>, when
+the parent request read C<$tag> later (after the subrequest was finished), the
+cached value C<2> was directly returned! Such results can indeed be very
+surprising at first glance.
 
-Admittedly, think twice if we design to share variables in between parent
-request and subrequests.
+From this example, we can conclude again that it can hardly be a good idea to
+enable
+variable container sharing in subrequests.
 
