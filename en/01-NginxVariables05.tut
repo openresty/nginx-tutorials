@@ -1,41 +1,37 @@
 = Nginx Variables (05) =
 
-In L<vartut/ (02)> we learnt that variable life cycle is bounded with
-the request, but i own you a formal definition of "request". Without further
-explaining, you might have assumed that "request" refers to the HTTP request
-initiated by the client. But, there are actually two types of "request"
-in Nginx
-world. One is called "main request", the other "subrequest". Now let's
-wire them in.
+== Variables in Subrequests ==
 
-The "main request" is the request initiated by HTTP client from outside
-Nginx.
-All requests we've been discussed are "main request", including the internal
-"jump"
-introduced in L<vartut/ 02), which uses command L<ngx_echo/echo_exec> and
-L<ngx_rewrite/rewrite>
+=== A Detour to Subrequests ===
 
-Whereas the "subrequest" is a type of cascading request issued by Nginx
-from within
-its internals. "Subrequest" is encapsulated just like HTTP request, but
-it has absolutely
-nothing to do with HTTP protocol and networking. Subrequest is a useful
-abstraction in
-Nginx design, to ease the decomposition of main request into a few "internal
-requests" with
-finer granularity. Subrequest can be issued to multiple C<location> interfaces
-sequentially
-or in parallel, and handles the main request by collaborating their respective
-outcomes.
-Certainly, subrequest can be further decomposed into other subrequests,
-subrequest can even
-form a recursive pattern by cascade the request to itself. When a request
-issues its subrequests,
-it is called "parent request" in Nginx terminology. As a footnote, for
-those who had wet themselves
-with Apache, subrequest is defined equivalently and not totally a stranger.
+We have seen earlier that the lifetime of variable containers is bound to the
+request, but I own you a formal definition of "requests" there. You might have
+assumed that the "requests" in that context are just those HTTP requests
+initiated from the client side. In fact, there are two kinds of "requests" in
+the Nginx world. One is called "main requests", and the other is called
+"subrequests".
 
-Let's check a subrequest example:
+Main requests are those initiated externally by HTTP clients. All the examples
+that we have seen so far involve main requests only, including those doing
+"internal redirections" via the L<ngx_echo/echo_exec> or L<ngx_rewrite/rewrite>
+directive.
+
+Whereas subrequests are a special kind of requests initiated from within the
+Nginx core. But please do not confuse subrequests with those HTTP requests
+created by the L<ngx_proxy> modules! Subrequests may look very much like an
+HTTP request in appearance, their implementation, however, has nothing to do
+with neither the HTTP protocol nor any kind of socket communication. A
+subrequest is an abstract invocation for decomposing the task of the main
+request into smaller "internal requests" that can be served independently by
+multiple different C<location> blocks, either in series or in parallel.
+"Subrequests" can also be recursive: any subrequest can initiate more
+sub-subrequests, targeting other C<location> blocks or even the current
+C<location> itself. According to Nginx's terminology, if request A initiates a
+subrequest B, then A is called the "parent request" of B. It is worth
+mentioning that the Apache web server also has the concept of subrequests for
+long, so readers coming from that world should be no stranger to this.
+
+Let's check out an example using subrequests:
 
     :nginx
     location /main {
@@ -51,37 +47,37 @@ Let's check a subrequest example:
         echo bar;
     }
 
-Now in C<location /main>, two subrequests are sent to C</foo> and C</bar>
-via 3rd party module L<ngx_echo> and its command L<ngx_echo/echo_location>.
-The subrequests are of type HTTP C<GET>. When they are sent by L<ngx_echo/echo_location>
-the requests are executed sequentially, in the order of their writing,
-which
-means, C</bar> is sub-requested only when C</foo> has finished its part.
-And
-outcome from the subrequests will be concatenated as the final response
-of C</main>
+Here in C<location /main>, we use the L<ngx_echo/echo_location> directive from
+the L<ngx_echo> module to initiate two C<GET>-typed subrequests targeting
+C</foo> and C</bar>, respectively. The subrequests initiated by
+L<ngx_echo/echo_location> are always running sequentially according to their
+literal order in the configuration file. Therefore, the second C</bar> request
+will not be fired until the first C</foo> request completes processing. The
+response body of these two subrequests get concatenated together according to
+their running order, to form the final response body of their parent request
+(for C</main>):
 
     :bash
     $ curl 'http://localhost:8080/main'
     foo
     bar
 
-As we can tell, subrequest is issued within a virtual server, i.e. subrequest
-handling is implemented as a few C API calls, without any networking nor
-UNIX
-socket, therefore subrequest execution is extremely fast.
+It should be noted that the communication of C<location> blocks via subrequests
+is limited within the same C<server> block (i.e., the same virtual server
+configuration), so when the Nginx core processes a subrequest, it just calls a
+few C functions behind the scene, without doing any kind of network or UNIX
+domain socket communication. For this reason, subrequests are extremely
+efficient.
 
-Back to the very initial subject about Nginx variable life cycle, we can
-still
-safely conclude that it is bounded with current request and every request
-has
-an isolated copy of variables. However, the request can be "main request"
-as
-well as "subrequest". Even if "parent request" and "subrequest" share the
-same
-variable name, they are virtually different variables. We can verify it
-with
-following test:
+=== Independent Variable Containers in Subrequests ===
+
+Back to our earlier discussion for the lifetime of Nginx variable containers,
+now we can still state that the lifetime is bound to the current request, and
+every request does have its own copy of all the variable containers. It is just
+that the "request" here can be either a main request, or a subrequest.
+Variables with the same name between a parent request and a subrequest will
+generally not interfere with each other. Let's do a small experiment to confirm
+this:
 
     :nginx
     location /main {
@@ -103,11 +99,13 @@ following test:
         echo "bar: $var";
     }
 
-In this test, the same variable C<$var> is declared in C<location /main>,
-C<location /foo> and C<location /bar> but is initialized with different
-values.
-Further more, we print the value of variable C<$var> within C</main> after
-two subrequests are handled. Then we issue a request to C</main>:
+In this sample, we assign different values to the variable C<$var> in three
+C<location> blocks, C</main>, C</foo>, and C</bar>, and output the value of
+C<$var> in all these locations. In particular, we intentionally output the
+value of C<$var> in C<location /main> I<after> calling the two subrequests, so
+if value changes of C<$var> in the subrequests can affect their parent request,
+we should see a new value output in location C</main>. The result of requesting
+C</main> is as follows:
 
     :bash
     $ curl 'http://localhost:8080/main'
@@ -115,19 +113,16 @@ two subrequests are handled. Then we issue a request to C</main>:
     bar: bar
     main: main
 
-Apparently, when the subrequests are handled in C</foo> and C</bar>,
-they both have no impact on the value of C<$var> and the main requesting
-handling
-in C</main>, again subrequests themselves have no impact on each other.
-So we
-have asserted that "main request" and every other subrequest each has its
-own
-copies of C<$var>.
+Apparently, the assignments to variable C<$var> in those two subrequests do not
+affect the main request C</main> at all. This successfully verifies that both
+the main request and its subrequests do own different copies of variable
+containers.
 
-Unfortunately, there exists exceptions. Some Nginx module might issue
-subrequest which references the same copy of variables of their parent
-request. The
-3rd party module L<ngx_auth_request> is one of them:
+=== Shared Variable Containers among Requests ===
+
+Unfortunately, subrequests initiated by certain Nginx modules do share variable
+containers with their parent requests, like those initiated by the 3rd-party
+module L<ngx_auth_request>. Below is such an example:
 
     :nginx
     location /main {
@@ -141,43 +136,44 @@ request. The
         echo "sub: $var";
     }
 
-Variable C<$var> is declared and initialized with value C<main> in C<location
-/main>
-then a subrequest is issued via module L<ngx_auth_request> and its command
-L<ngx_auth_request/auth_request>, finally we print variable C<$var> using
-command L<ngx_echo/echo>.
-Now we reset variable C<$var> as C<sub> in C<location /sub> and check what
-our test says:
+Here in C<location /main>, we first assign the initial value C<main> to
+variable C<$var>, then fire a subrequest to C</sub> via the
+L<ngx_auth_request/auth_request> directive from the L<ngx_auth_request> module,
+and finally output the value of C<$var>. Note that in C<location /sub> we
+intentionally overwrite the value of C<$var> to C<sub>. When accessing
+C</main>, we get
 
     :bash
     $ curl 'http://localhost:8080/main'
     main: sub
 
-It says, C<$var> has become C<sub> back in its main request to C<location
-/main>, which means
-the subrequest issued by L<ngx_auth_request> module shares exactly the
-same copy of variables
-with its parent request.
+Obviously, the value change of C<$var> in the subrequest to C</sub> does affect
+the main request to C</main>. Thus the variable container of C<$var> is indeed
+shared between the main request and the subrequest created by the
+L<ngx_auth_request> module.
 
-Wait a minute, you might exclaim, why the print within subrequest to C<location
-/sub> is missing?
-good gocha and the answer is simple, command L<ngx_auth_request/auth_request>
-ignores the responses
-from its subrequest, instead all it cares is the status code from the subrequest
-(subrequest is
-ecapsulated as HTTP request). When status code is C<2XX>, the handling
-of main request continues,
-otherwise the handling gets aborted and error is returned. In our example,
-subrequest only executes
-a print by L<ngx_echo/echo>, which implicitly returns status code C<200>.
+For the previous example, some readers might ask: "why doesn't the response
+body of the subrequest appear in the final output?" The answer is simple: it is
+just because the L<ngx_auth_request/auth_request> directive discards the
+response
+body of the subrequest it manages, and only checks the response status code of
+the subrequest. When the status code looks good, like C<200>,
+L<ngx_auth_request/auth_request> will just allow Nginx continue processing the
+main request; otherwise it will immediately abort the main request by
+returning a C<403> error page, for example. In our example, the subrequest to
+C</sub>
+just return a C<200> response implicitly created by the L<ngx_echo/echo>
+directive in C<location /sub>.
 
-Surely it's always easier to share variables in between parent request
-and subrequest, like module
-L<ngx_auth_request> does. Do expect the side effect and haunted bugs it
-consequences when configuration
-scales and becomes complicated. It's too hard to trace a variable when
-its value get overwritten in
-some subrequests. To keep our sanity, modules like L<ngx_echo>, L<ngx_lua>
-and L<ngx_srcache> and many
-other 3rd party module chooses not to share variables in between requests.
+Even though sharing variable containers among the main request and all its
+subrequests could make bidirectional data exchange easier, it could also lead
+to unexpected subtle issues that are hard to debug in real-world
+configurations. Because users often forget that a variable with the same name
+is actually used in some deeply embedded subrequest and just use it for
+something else in the main request, this variable could get unexpectedly
+modified during processing. Such bad side effects make many 3rd-party modules
+like L<ngx_echo>, L<ngx_lua> and
+L<ngx_srcache> choose to disable the variable sharing behavior for subrequests
+by
+default.
 
