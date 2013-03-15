@@ -1,27 +1,32 @@
 = Nginx Variables (07) =
 
-We have learnt in L<vartut/ (01)>, that Nginx variables could only
-be strings. We are in fact, not entirely correct because variables
-can have non-values. There are 2 kinds of non-values in Nginx, one
-is "invalid" value, another is "not found" value.
+== Special Value "Invalid" and "Not Found" ==
 
-For example, if Nginx variable C<$foo> is declared but not initialized
-it has an "invalid" value. Whereas if there exists no C<XXX> parameter
-in the current request URL, builtin variable C<$arg_XXX> has a "not found"
-value.
+We have mentioned that the values of Nginx variables can only be of one single
+type, that is, the string type, but variables could also have no meaningful
+values
+at all. Variables without any meaningful values still take a special value
+though.
+There are two possible special values: "invalid" and "not found".
 
-Nginx special values, such as "invalid" value or "not found" value, are
-totally different from empty string (""). Like C<undefined> and C<null>
-found in JavaScript, or C<nil> found in Lua, these non-values are not
-numerical value C<0>, they are not boolean value C<false> either. In fact
-the C<NULL> found in SQL is an equivalent element.
+For example, when a user variable C<$foo> is created but not assigned yet,
+C<$foo> takes the special value of "invalid". And when the current URL
+query string does not have the C<XXX> argument at all, the built-in variable
+L<$arg_XXX>  takes the special value of "not found".
 
-Although back in L<vartut/ (01)>, the uninitialized value becomes empty
-string in "variable interpolation" via command L<ngx_rewrite/set>. This
-is
-because L<ngx_rewrite/set> hooks a "get handler" for the variable it declares,
-and the handler turns "invalid" value into empty string. Let's review the
-example in L<vartut/ (01)> for this assertion:
+Both "invalid" and "not found" are special values, completely different from an
+empty string value (C<"">). This is very similar to those distinct special
+values in some dynamic programing languages, like C<undef> in Perl, C<nil> in
+Lua, and C<null>
+in JavaScript.
+
+We have seen earlier that an uninitialized variable is evaluated to an
+empty
+string when used in an interpolated string, its real value, however, is not an
+empty
+string at all. It is the "get handler" registered by the L<ngx_rewrite/set>
+directive that automatically converts the "invalid" special value into an empty
+string. To verify this, let's return to the example we have discussed before:
 
     :nginx
     location /foo {
@@ -33,93 +38,80 @@ example in L<vartut/ (01)> for this assertion:
         echo "foo = [$foo]";
     }
 
-Again to make it clearer, the C<server> directive is omitted. In this example
-command L<ngx_rewrite/set> implicitly declares variable C<$foo> within
-C<location /bar>
-Then we print the uninitialized C<$foo> within C<location /foo> by using
-command
-L<ngx_echo/echo>. The result is following when C<location /foo> was requested:
+When accessing C</foo>, the user variable C<$foo> is uninitialized when used in
+the interpolated string for the L<ngx_echo/echo> directive. The output shows
+that the variable is evaluated to an empty string:
 
     :bash
     $ curl 'http://localhost:8080/foo'
     foo = []
 
-If we look at the output, uninitialized variable C<$foo> is equivalent
-to an empty
-string. However if we look further into Nginx error log (usually the file
-name is F<error.log>)
-it has a warning message when the request is handled:
+From the output, the uninitialized C<$foo> variable behaves just like
+taking an empty string value. But careful readers should have already noticed
+that, for the request above, there is a warning in the Nginx error log file
+(which is F<logs/error.log> by default):
 
     [warn] 5765#0: *1 using uninitialized "foo" variable, ...
 
-How is the warning generated ? The answer is the "get handler" hooked to
-variable C<$foo>
-when it is declared by command L<ngx_rewrite/set>. By the time command
-L<ngx_echo/echo>
-gets executed within C<location /foo>, it needs to evaluate its parameter
-C<"foo = [$foo]">
-this is where "variable interpolation" is happening and variable C<$foo>
-is devalued,
-Nginx first checks the value container, which has a special "invalid" value,
-so it decides
-to execute the variable's "get handler". The handler prints a warning message
-in Nginx's error
-log, then returns and caches an empty string as the value of C<$foo>.
+Who on earth generates this warning? The answer is the "get handler" of C<$foo>,
+registered by the L<ngx_rewrite/set> directive. When C<$foo> is read, Nginx
+first checks the value in its container but sees the "invalid" special value,
+then Nginx decides to continue running C<$foo>'s "get handler", which first
+prints the warning (as shown above) and then returns an empty string value,
+which thereafter gets cached in C<$foo>'s value container.
 
-You might have perceived, this is exactly the same process with which those
-builtin variable
-works, when it opt-in a value container as cache. Command L<ngx_rewrite/set>
-uses the very
-mechanism to handle those uninitialized Nginx variables. Be careful though,
-only special value
-"invalid" will trigger Nginx to execute its "get handler", another special
-value "no found" won't.
+Careful readers should have identified that this process for user variables is
+exactly the same as the mechanism we discussed earlier for built-in variables
+involving "get handlers" and result caching in value containers. Yes, it is the
+same mechanism in action. It is also worth noting that  only the "invalid"
+special value will trigger the "get handler" invocation in the Nginx core while
+"not found" will not.
 
-The warning message is helpful, as it tells we might have miss spelled
-variables in Nginx
-configuration, or we might have used uninitialized variables under an incorrect
-context. Since
-cache exists, the warning won't repeat itself for a request life cycle.
-Besides, the warning
-can be turned off by module L<ngx_rewrite> and its command L<ngx_rewrite/uninitialized_variable_warn>
+The warning message above usually indicates a typo in the variable name or
+misuse of uninitialized variables, not necessarily in the context of an
+interpolated string. Because of the existence of value caching in the variable
+container, this warning will not get printed multiple times in the lifetime of
+the current request. Also, the L<ngx_rewrite> module provides the
+L<ngx_rewrite/uninitialized_variable_warn> directive for disabling this warning
+altogether.
 
-As we said earlier, builtin variable L<$arg_XXX> has a special value "not
-found" when
-the request URL has no C<XXX> parameter. However we cannot as easily distinguish
-it from
-an empty string, using Nginx native syntax.
+=== Testing Special Values of Nginx Variables in Lua ===
+
+As we have just mentioned, the built-in variable L<$arg_XXX> takes the special
+value "not found" when the URL argument C<XXX> does not exist, but
+unfortunately, it is not easy to distinguish it from the empty string value
+directly in the Nginx configuration file, for example:
 
     :nginx
     location /test {
         echo "name: [$arg_name]";
     }
 
-We print variable C<$arg_name> meanwhile not to provide C<name> parameter
-in the request
+Here we intentionally omit the URL argument C<name> in our request:
 
     :bash
     $ curl 'http://localhost:8080/test'
     name: []
 
-Special value "not found" cannot be asserted in the output, it looks like
-an empty string.
-The "variable interpolation" of Nginx simply ignores "not found" when it
-is evaluated.
+We can see that we are still getting an empty string value, because this time
+it is the Nginx "script engine" that automatically converts the "not found"
+special value to an empty string when performing variable interpolation.
 
-So how do we trace "not found" ? What exactly we can do to distinguish
-it from an empty
-string ? Obviously, URL parameter C<name> has an empty string in the request
-below:
+Then how can we test the special value "not found"? Or in other
+words, how can we distinguish it from normal empty string values? Obviously, in
+the following example, the URL argument C<name> does take an ordinary value,
+which is a
+true empty string:
 
     :bash
     $ curl 'http://localhost:8080/test?name='
     name: []
 
-We cannot yet tell any differences from the earlier example.
+But we cannot really differentiate this from the earlier case that does not
+mention the C<name> argument at all.
 
-Good news is, with the help of 3rd party module L<ngx_lua>, it can be done
-in
-lua code. Now check example below:
+Luckily, we can easily achieve this in Lua by means of the 3rd-party module
+L<ngx_lua>. Please look at the following example:
 
     :nginx
     location /test {
@@ -132,70 +124,73 @@ lua code. Now check example below:
         ';
     }
 
-This configuration is pretty close to the earlier one, except
-we have used module L<ngx_lua> and its command L<ngx_lua/content_by_lua>,
-to check Nginx variables and their possible special values using lua code.
-Specifically, we print C<name: missing> if variable C<$arg_name> has
-a non-value "not found" or "invalid":
+This example is very close to the previous one in terms of functionality.
+We use the L<ngx_lua/content_by_lua> directive from the L<ngx_lua> module to
+embed a small piece of our own Lua code to test against the special value of
+the Nginx variable C<$arg_name>. When C<$arg_name> takes a special value
+(either "not found" or "invalid"), we will get the following output when
+requesting C</foo>:
 
     :bash
-    curl 'http://localhost:8080/test'
+    $ curl 'http://localhost:8080/test'
     name: missing
 
-Let me briefly introduce module L<ngx_lua>, the module embeds lua interpreter
-(standard or L<LuaJIT|http://luajit.org/luajit.html> in Nginx core, so
-that
-lua programs can be executed directly inside Nginx. The lua programs can
-be
-written right away in Nginx configuration or be written in external F<.
-lua>
-file and loaded via Nginx command referencing the F<.lua> path.
+This is our first time meeting the L<ngx_lua> module, which deserves a brief
+introduction. This module embeds the Lua language interpreter (or LuaJIT's
+Just-in-Time compiler) into the Nginx core, to allow Nginx users directly run
+their own Lua programs inside the server. The user can choose to insert
+her Lua code into different running phases of the server, to fulfill different
+requirements. Such Lua code are either specified directly as literal strings in
+the Nginx
+configuration file, or reside in external F<.lua> source files (or Lua binary
+bytecode
+files) whose paths are specified in the Nginx configuration.
 
-Back to our example, Nginx variables are referenced by C<ngx.var> from
-within
-lua, it is bridged by module L<ngx_lua>. For example, Nginx variable C<$VARIABLE>
-can be written as L<ngx_lua/ngx.var.VARIABLE> in lua code. When Nginx variable
-C<$arg_name> has non-value (special value "invalid" or "not found"), the
-corresponding
-variable C<ngx.var.arg_name> is C<nil> in lua. Further more, module L<ngx_lua>
-provides lua function L<ngx_lua/ngx.say>, functionally it is equivalent
-to
-module L<ngx_echo> and its command L<ngx_echo/echo>.
+Back to our example, we cannot directly write something like C<$arg_name> in
+our Lua code. Instead, we reference Nginx variables in Lua by means of the
+C<ngx.var> API provided by the L<ngx_lua> module. For example, to reference the
+Nginx variable C<$VARIABLE> in Lua, we just write L<ngx_luua/ngx.var.VARIABLE>.
+When the Nginx variable C<$arg_name> takes the special value "not found" (or
+"invalid"), C<ngx.var.arg_name> is evaluated to the C<nil> value in the Lua
+world. It should also be noting that we use the Lua function L<ngx_lua/ngx.say>
+to print out the response body contents, which is functionally equivalent to
+the L<ngx_echo/echo> directive we are already very familiar with.
 
-Now if we request with C<name> parameter being an empty string, the output
-becomes
-different:
+If we provide a C<name> URI argument that takes an empty value in the request,
+the output is now very different:
 
     :bash
     $ curl 'http://localhost:8080/test?name='
     name: []
 
-In this case, Nginx variable C<$arg_name> is an empty string, which
-is neither "not found" nor "invalid", so Lua code prints empty string
-"" for C<ngx.var.arg_name>. Apparently we have distinguished it from
-Lua C<nil>
+In this test, the value of the Nginx variable C<$arg_name> is a true empty
+string, neither "not found" nor "invalid". So in Lua, the expression
+C<ngx.var.arg_name> evaluates to the Lua empty string (C<"">), clearly
+distinguished from the Lua C<nil> value in the previous test.
 
-The distinction becomes significant in a few scenarios. For example,
-a web service might filter its returns by C<name> by checking if
-C<name> parameter exists in URL parameters, even if C<name> has an
-empty string, it still can be used in a filtering operation.
+This differentiation is important in certain application scenarios. For
+instance, some web services have to decide whether to use a column value to
+filter the data set by checking the I<existence> of the corresponding URI
+argument. For these serives, when the C<name> URI argument is absent, the
+whole data set are just returned; when the C<name> argument takes an empty
+value, however, only those records that take an empty value are returned.
 
-Admittedly, there are some restrictions with builtin variable L<$arg_XXX>
-as we can see from our request to C<location /test>:
+It is worth mentioning a few limitations in the standard L<$arg_XXX> variable.
+Consider using the following request to test C</test> in our previous example
+using Lua:
 
     $ curl 'http://localhost:8080/test?name'
     name: missing
 
-In this case, C<$arg_name> is still computed as "not found" non-value,
-which
-is counter common sense. Besides, L<$arg_XXX> only resolutes to the first
-C<XXX>
-parameter if there are multiple C<XXX> URL parameters, the rest are discarded:
+Now the C<$arg_name> variable still reads the "not found" special value, which
+is apparently counter-intuitive. Additionally, when multiple URI arguments with
+the same name are specified in the request, L<$arg_XXX> just
+returns the first value of the argument, discarding other values silently:
 
     :bash
     $ curl 'http://localhost:8080/test?name=Tom&name=Jim&name=Bob'
     name: [Tom]
 
-To fix these defects, one can use module L<ngx_lua> and its lua function
-L<ngx_lua/ngx.req.get_uri_args> in lua code.
+To solve these problems, we can directly use the Lua function
+L<ngx_lua/ngx.req.get_uri_args> provided by the L<ngx_lua> module.
 
