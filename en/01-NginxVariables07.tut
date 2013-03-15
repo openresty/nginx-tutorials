@@ -191,6 +191,6 @@ returns the first value of the argument, discarding other values silently:
     $ curl 'http://localhost:8080/test?name=Tom&name=Jim&name=Bob'
     name: [Tom]
 
-To solve these problems, we can directly use the Lua function
-L<ngx_lua/ngx.req.get_uri_args> provided by the L<ngx_lua> module.
+To solve these problems, we can use the Lua function
+L<ngx_lua/ngx.req.get_uri_args> provided by the L<ngx_lua> module instead.
 
