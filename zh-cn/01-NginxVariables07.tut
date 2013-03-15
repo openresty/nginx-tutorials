@@ -127,7 +127,7 @@ L<ngx_lua>
 接口会输出 C<name: missing> 这一行结果:
 
     :bash
-    curl 'http://localhost:8080/test'
+    $ curl 'http://localhost:8080/test'
     name: missing
 
 因为这是我们第一次接触到 L<ngx_lua> 模块，所以需要先简单介绍一下。L<ngx_lua>
@@ -136,7 +136,8 @@ L<ngx_lua>
 心中，从而可以让用户在 Nginx 核心中直接运行 Lua 语言编写的程序。我们
 可以选择在 Nginx 不同的请求处理阶段插入我们的 Lua 代码。这些 Lua
 代码既可以直接内联在 Nginx 配置文件中，也可以单独放置在外部 F<.lua>
-文件里，然后在 Nginx 配置文件中引用 F<.lua> 文件的路径。
+源码文件（或者 Lua 字节码文件）里，然后在 Nginx 配置文件中引用这些
+文件的路径。
 
 回到上面这个例子，我们在 Lua 代码里引用 Nginx 变量都是通过 C<ngx.var>
 这个由 L<ngx_lua> 模块提供的 Lua 接口。比如引用 Nginx
