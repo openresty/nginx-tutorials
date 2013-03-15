@@ -11,7 +11,7 @@ en:
 	$(MAKE) -f ebooks.mk
 
 html:
-	$(MAKE) -f ebooks.mk lang=cn lang2=cn src=zh-cn title="agentzh的Nginx教程（$(ver)版）" html
+	$(MAKE) -f ebooks.mk lang=zhcn lang2=cn src=zh-cn title="agentzh的Nginx教程（$(ver)版）" html
 	$(MAKE) -f ebooks.mk html
 
 clean:
