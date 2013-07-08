@@ -36,7 +36,7 @@ by me.
 L<http://openresty.org/|http://openresty.org/>
 
 All of the modules mentioned in these tutorials, including the Nginx stable
-core that is fresh enough, have included in this bundle.
+core that is fresh enough, have been included in this bundle.
 
 One principle that I've been trying to follow in these tutorials is to
 use small and concise configure examples to validate the concepts and principles
@@ -47,7 +47,7 @@ I keep adjusting and correcting my words according to the running results
 of my little samples in the process of writing.
 
 For problematic code samples, we will intentionally make them look different
-from those good samples, that is, all the lines of the bad samples will
+from those good samples, that is, all the lines of bad samples will
 be prefixed with a question mark, i.e., "C<?>". Here is an example:
 
     :nginx

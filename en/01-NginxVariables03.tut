@@ -133,7 +133,7 @@ the behavior of the L<ngx_proxy> module.
 
 We have already learned in previous sections that when reading the built-in
 variable L<ngx_core/$args>, Nginx executes a special piece of code to obtain a
-value on-the-fly and when writing to this variable, Nginx also executes another
+value on-the-fly and when writing to this variable, Nginx executes another
 special piece of code to propagate the change. In Nginx's terminology, the
 special code executed for reading the variable is called "get handler"
 and the code for writing to the variable is called "set handler". Different

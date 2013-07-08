@@ -9,7 +9,7 @@ is heavily influenced by
 Perl and Bourne Shell as far as I can see, despite the fact that it might not
 be Turing-Complete and it is declarative in many places. This is a
 distinguishing feature of Nginx, as compared
-to the other web servers
+to other web servers
 like Apache or Lighttpd. Being a programming language, "variables" are
 thus a natural part of it (exceptions do exist, of course, as in pure
 functional languages like Haskell).
@@ -117,7 +117,7 @@ Luckily, workarounds do exist and here is one proposed by Maxim Dounin: first
 we assign to a variable a literal string containing a dollar sign character
 via a configuration directive that does I<not> support "variable interpolation"
 (remember that not all the directives support "variable interpolation"?), and
-then reference this variable later wherever we need a dollar sign. Here is such
+then reference this variable later whenever we need a dollar sign. Here is such
 an
 example to demonstrate the idea:
 
@@ -159,7 +159,7 @@ with the string C<"$"> unconditionally.
 There is a special case for "variable interpolation", that is, when the variable
 name is followed directly by characters allowed in variable names (like
 letters, digits, and underscores).
-In such cases we can use a special notation to disambiguate the variable name
+In such cases, we can use a special notation to disambiguate the variable name
 from the subsequent literal characters, for instance,
 
     :nginx

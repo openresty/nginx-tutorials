@@ -88,7 +88,7 @@ from source:
     cd nginx-1.0.10/
     ./configure --with-debug
     make
-    sudu make install
+    sudo make install
 
 In case the package L<ngx_openresty|http://openresty.org> is used. The
 option C<--with-debug> can be used with its C<./configure> script as well.
