@@ -212,8 +212,8 @@ construct such a horrible example:
 Here we use our old friend, the L<ngx_map/map> directive, to map the value of
 the built-in variable L<ngx_core/$uri> to our user variable C<$tag>. When
 L<ngx_core/$uri> takes the value C</main>, the value C<1> is assigned to
-C<$tags>; when L<ngx_core/$uri> takes the value C</sub>, the value C<2> is
-assigned instead to C<$tags>; under all the other conditions, C<0> is assigned.
+C<$tag>; when L<ngx_core/$uri> takes the value C</sub>, the value C<2> is
+assigned instead to C<$tag>; under all the other conditions, C<0> is assigned.
 Next, in C</main>, we first initiate a subrequest to C</sub> by using the
 L<ngx_auth_request/auth_request> directive, and then output the value of
 C<$tag>. And within C</sub>, we directly output the value of C<$tag>. Guess

@@ -120,7 +120,7 @@ is F</home/agentzh/test/html/>.
 Many newbies might take it for granted that error C<404> is caused when
 the needed C<location> does not exist. The former example tells us,
 C<404> error could be returned even if the needed C<location> is configured
-and matched. This is because error C<404> means the non-existence of a
+and matched. This is because error C<404> means the non-existence of an
 abstract "resource", not the specific C<location>.
 
 Another frequent mistake is missing the command for phase C<content>,

@@ -36,7 +36,7 @@ There ain't any Nginx bug here, or we'd rather rephrase it as a
 feature, and it's a long story. When Nginx handles every request,
 the execution follows a few predefined phases.
 
-There can be altogehter 11 phases when Nginx handles a request, let's
+There can be altogether 11 phases when Nginx handles a request, let's
 start with three most common ones: C<rewrite>, C<access> and C<content>
 (later on the other phases will be addressed)
 
