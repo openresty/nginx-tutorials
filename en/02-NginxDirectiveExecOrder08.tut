@@ -106,7 +106,7 @@ from its original address and the proxies in between are transparent. For
 this exact purpose, module L<ngx_realip> needs hook handlers in the first
 phase, the C<post-read> phase, so the rewriting occurs as early as possible.
 
-Behind C<post-phase> is the C<server-rewrite> phase. We briefly mentioned
+Behind C<post-read> is the C<server-rewrite> phase. We briefly mentioned
 in L<ordertut/ (02)>, when module L<ngx_rewrite> and its commands are configured
 in C<server> directive, they basically execute in C<server-rewrite> phase.
 We have an example below:
