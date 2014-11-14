@@ -1,13 +1,12 @@
 = Nginx directive execution order (01) =
 
-It can be really frustrated for many Nginx users, that
-if multiple Nginx module's commands are written within
-one C<location> directive, the execution order can be
-very different from the order they were written. For those
-impatient who choose "try out possibilities before everything
-else", the directive commands can be scattered like a hell.
-This series is to uncover the mysteries and help you better
-understand the execution ordering behind the scene.
+When there are multiple Nginx module commands in a 
+C<location> directive, the execution order can be 
+different from what you expect. Busy Nginx users who 
+attempt to configure Nginx by "trial and error" may be
+very confused by this behavior. This series is to 
+uncover the mysteries and help you better
+understand the execution ordering behind the scenes.
 
 We start with a confused example:
 
@@ -22,7 +21,7 @@ We start with a confused example:
 
 Clearly, we'd expect to output C<32>, followed by C<56>. Because
 variable C<$a> has been reset after command L<ngx_echo/echo> "is
-executed". Really? you are welcomed to the reality:
+executed". Really? the reality is:
 
     :bash
     $ curl 'http://localhost:8080/test
@@ -30,25 +29,23 @@ executed". Really? you are welcomed to the reality:
     56
 
 Wow, statement C<set $a 56> must have had been executed before
-the first C<echo $a> command, but why? Is it a Nginx bug ?
+the first C<echo $a> command, but why? Is it a Nginx bug?
 
-There ain't any Nginx bug here, or we'd rather rephrase it as a
-feature, and it's a long story. When Nginx handles every request,
+No, this is not an Nginx bug. When Nginx handles every request,
 the execution follows a few predefined phases.
 
 There can be altogether 11 phases when Nginx handles a request, let's
 start with three most common ones: C<rewrite>, C<access> and C<content>
-(later on the other phases will be addressed)
+(The other phases will be addressed later.)
 
-Usually a Nginx module and its commands register their execution
+Usually an Nginx module and its commands register their execution
 in only one of those phases. For example command L<ngx_rewrite/set> runs
 in phase C<rewrite>, and command L<ngx_echo/echo> runs in phase C<content>.
 Since phase C<rewrite> occurs before phase C<content> for every request
 processing, its commands are executed earlier as well. Therefore,
 command L<ngx_rewrite/set> always gets executed before command L<ngx_echo/echo>
 within one C<location> directive, regardless of their statement ordering
-in the
-configuration.
+in the configuration.
 
 Back to our example:
 
@@ -69,19 +66,17 @@ The actual execution ordering is:
 
 It's clear now, two commands L<ngx_rewrite/set> are executed in phase
 C<rewrite>, two commands L<ngx_echo/echo> are executed afterwards in
-phase C<content>. Commands belonging to different phases cannot be
-executed back and forth.
+phase C<content>. Commands in different phases cannot be executed 
+back and forth.
 
-To prove ourselves and better uncover these points, We can
-troubleshoot Nginx's "debug log".
+To prove this, we can enable Nginx's "debug log".
 
-We've not checked Nginx "debug log" before, so let's briefly introduce
-its usage."debug log" by default is disabled, because it has very
-big runtime overheads and overall Nginx service is degraded. To enable
-"debug log" we would need to reconfigure and recompile Nginx binary, by
-giving C<--with-debug> option for the package's C<./configure> script.
-The typical steps are as following when build under Linux or Mac OS X
-from source:
+If you have not worked with Nginx "debug log" before, here is a brief
+introduction. The "debug log" is disabled by default because 
+performance is degraded when it is enabled. To enable "debug log" 
+you must reconfigure and recompile Nginx, and set the 
+C<--with-debug> option for the package's C<./configure> script.
+When building under Linux or Mac OS X from source:
 
     :bash
     tar xvf nginx-1.0.10.tar.gz
@@ -240,4 +235,3 @@ of
 execution ordering. Igor Sysoev, the author of Nginx, has made the statements
 a few times publicly, that Nginx mini language in its configuration is
 "declarative" not "procedural".
-
