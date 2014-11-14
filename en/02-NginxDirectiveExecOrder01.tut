@@ -69,16 +69,14 @@ C<rewrite>, two commands L<ngx_echo/echo> are executed afterwards in
 phase C<content>. Commands in different phases cannot be executed 
 back and forth.
 
-To prove this, we can troubleshoot Nginx's "debug log".
+To prove this, we can enable Nginx's "debug log".
 
 If you have not worked with Nginx "debug log" before, here is a brief
 introduction. The "debug log" is disabled by default because 
-performance is degraded when it is enabled. 
-
-To enable "debug log" we would need to reconfigure and recompile Nginx
-binary, by giving C<--with-debug> option for the package's C<./configure> 
-script. The typical steps are as following when build under Linux or Mac OS X
-from source:
+performance is degraded when it is enabled. To enable "debug log" 
+you must reconfigure and recompile Nginx, and set the 
+C<--with-debug> option for the package's C<./configure> script.
+When building under Linux or Mac OS X from source:
 
     :bash
     tar xvf nginx-1.0.10.tar.gz
