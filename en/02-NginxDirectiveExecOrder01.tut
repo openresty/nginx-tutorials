@@ -72,9 +72,8 @@ back and forth.
 To prove this, we can troubleshoot Nginx's "debug log".
 
 If you have not worked with Nginx "debug log" before, here is a brief
-introduction. The "debug log" by default is disabled, because it has very
-big runtime overheads and the overall Nginx performance is degraded when
-it is enabled. 
+introduction. The "debug log" is disabled by default because 
+performance is degraded when it is enabled. 
 
 To enable "debug log" we would need to reconfigure and recompile Nginx
 binary, by giving C<--with-debug> option for the package's C<./configure> 
