@@ -1,48 +1,52 @@
 = Foreword =
 
-I've been doing a lot of work in the Nginx world over the last few years and 
+I've been doing a lot of work in the Nginx world over the last few years and
 I've also been thinking about writing a series of tutorial-like articles to
 explain to more people what I've done and what I've learned in this area. Now I
-have finally decided to post serial tutorials to the Sina Blog
+have finally decided to post serial articles to the Sina Blog
 L<http://blog.sina.com.cn/openresty> in Chinese. Every article will roughly
-cover a single topic and will be in a rather casual style. They're not parts of
-a book after all. That said, I do have plans to re-organize them to form a real
-book.
+cover a single topic and will be in a rather casual style. But at some point in
+the future I may restructure the articles and their style in order to turn them
+into a "real" book.
 
-The tutorials are divided into series. For example, the first series is
+The articles are divided into series. For example, the first series is
 "Nginx Variables". Each series can be thought of as mapping to a chapter in the
-Nginx book that I may publish in the future (of course, I will also reorganize
-the content to form "sections"). The tutorials are intended for Nginx users at
-various levels, including those Apache and Lighttpd users who may have never
-used Nginx before.
+Nginx book that I may publish in the future.
 
-The examples in my tutorials are at least compatible with Nginx C<0.8.54>. Do
-not try the examples with older versions of Nginx. The latest stable version as
-of this writing is C<1.0.10> after all.
+The articles are intended for Nginx users of all experience levels, including
+users with extensive Apache and Lighttpd experience who may have never used
+Nginx before.
 
-All of the Nginx modules mentioned in these tutorials are production-ready. So I
-will not be covering any Nginx core modules that are either experimental or
-buggy. Additionally, I will be making extensive use of 3rd-party Nginx modules
-in my examples. If it's inconvenient for you to download and install the
-individual modules one at a time then I highly recommend that you download and
-install the C<ngx_openresty> software bundle that I maintain.
+The examples in the articles are at least compatible with Nginx C<0.8.54>. Do
+not try the examples with older versions of Nginx. The latest stable version of
+Nginx as of this writing is C<1.7.9>.
+
+All of the Nginx modules referenced in the articles are production-ready. I will
+not be covering any Nginx core modules that are either experimental or buggy.
+Additionally, I will be making extensive use of 3rd-party Nginx modules in the
+examples. If it's inconvenient for you to download and install the individual
+modules one at a time then I highly recommend that you download and install the
+C<ngx_openresty> software bundle that I maintain.
 
 L<http://openresty.org/|http://openresty.org/>
 
-All of the modules mentioned in these tutorials, including the core Nginx 
-modules that are new but stable, are included in the C<openresty> bundle.
+All of the modules referenced in the articles, including the core Nginx modules
+that are new (but stable), are included in the OpenResty bundle.
 
-One principle that I've been trying to follow in these tutorials is to use small
-and concise configuration examples to explain and validate the concepts and
-principles being described. I hope this will help the reader to develop the good
-habit of not accepting others' viewpoints or statements at face value without
-testing them first. This style may have something to do with my QA background.
-In fact, I keep adjusting and correcting the tutorial based on the results of
-running the examples while writing.
+A principle that I will be trying to adhere to is to use small concise examples
+to explain and validate the concepts and behaviors being described. My hope is
+that it will help the reader to develop the good habit of not accepting others'
+viewpoints or statements at face value without testing them first. This approach
+may have something to do with my QA background. In fact, I keep tweaking and
+correcting the articles based on the results of running the examples while
+writing.
 
-For problematic code samples, I will intentionally make them look different from
-the good samples, that is, all the lines of the bad samples will be prefixed
-with a question mark, i.e., "C<?>". Here is an example:
+The examples in the articles fall into one of two categories, good and
+problematic. The purpose of the problematic examples is to highlight potential
+pitfalls and other areas where Nginx or its modules behave in ways that readers
+may not expect. Problematic examples are easy to identify because each line of
+text in the example will be prefixed with a question mark, i.e., "C<?>". Here is
+an example:
 
     :nginx
     ? server {
@@ -59,23 +63,22 @@ reserved.
 I encourage readers to send feedback (C<agentzh@gmail.com>), especially
 constructive criticism.
 
-The source for all the articles is on GitHub and is under version control:
+The source for all the articles is on GitHub:
 
 L<http://github.com/agentzh/nginx-tutorials/>
 
 The source files are under the F<en/> directory. I am using a little markup
-language that is a mixture of C<Wiki> and C<POD> to write these articles.
-They are the F<.tut> files. You are very welcome to create forks and/or provide
-patches.
+language that is a mixture of C<Wiki> and C<POD> to write these articles. They
+are the F<.tut> files. You are welcome to create forks and/or provide patches.
 
-The e-books files that are suitable for cellphones, Kindle,
-iPad/iPhone, Sony Readers, and other devices, can be downloaded from here:
+The e-books files that are suitable for cellphones, Kindle, iPad/iPhone,
+Sony Readers, and other devices can be downloaded from here:
 
 L<http://openresty.org/#eBooks>
 
-Special thanks go to Kai Wu (kai10k) who kindly translates these tutorials to English.
+Special thanks go to Kai Wu (kai10k) who kindly translates these articles to
+English.
 
 agentzh at home in the Fuzhou city
 
 October 30, 2011
-
