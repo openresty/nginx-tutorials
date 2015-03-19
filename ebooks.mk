@@ -25,16 +25,16 @@ html: $(name).html
 %.pdf: $(name).html
 	cp tutorial-simple.css tutorial.css
 	ebook-convert $< $@ \
-	    --margin-bottom 25 \
-	    --margin-top 25 \
-	    --margin-left 20 \
-	    --margin-right 20 \
+	    --override-profile-size \
+	    --margin-bottom 10 \
+	    --margin-top 10 \
+	    --margin-left 10 \
+	    --margin-right 10 \
 	    --no-chapters-in-toc \
 	    --book-producer 'agentzh' \
-	    --pdf-default-font-size 1 \
-	    --pdf-mono-font-size 1 \
+	    --pdf-default-font-size 12 \
+	    --pdf-mono-font-size 12 \
 	    --paper-size a4 \
-	    --output-profile kindle \
 	    --title "$(title)" --publisher 'agentzh' \
 	    --language $(lang2) --authors 'agentzh'
 	git co tutorial.css
