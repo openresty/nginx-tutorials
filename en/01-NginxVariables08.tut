@@ -135,7 +135,7 @@ is
 requested:
 
     :bash
-    $ curl 'http://localhost:8080/test?names=Tom,Jim,Bob
+    $ curl 'http://localhost:8080/test?names=Tom,Jim,Bob'
     [Tom] [Jim] [Bob]
 
 Clearly module L<ngx_array_var> make it easier to handle inputs with variable

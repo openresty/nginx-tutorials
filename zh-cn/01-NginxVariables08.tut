@@ -115,7 +115,7 @@ C<array_map> 和 C<array_join> 这三条配置指令，其含
 ：
 
     :bash
-    $ curl 'http://localhost:8080/test?names=Tom,Jim,Bob
+    $ curl 'http://localhost:8080/test?names=Tom,Jim,Bob'
     [Tom] [Jim] [Bob]
 
 我们看到，使用 L<ngx_array_var> 模块可以很方便地处理这样具有不
