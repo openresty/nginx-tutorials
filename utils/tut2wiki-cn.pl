@@ -1,8 +1,8 @@
 #!/usr/bin/env perl
 
+use utf8;
 use strict;
 use warnings;
-use encoding 'utf8';
 
 use Getopt::Std;
 my %opts;
@@ -74,7 +74,9 @@ while (<$in>) {
 
 close $in;
 
-open $in, "<:encoding(UTF-8)", \$src;
+utf8::encode($src);
+
+open $in, "<:encoding(UTF-8)", \$src or die $!;
 
 my $wiki = '';
 undef $prev;
@@ -225,4 +227,3 @@ if ($outfile) {
 sub usage {
     die "Usage: $0 [-o <outfile>] <infile>\n";
 }
-

@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-use encoding 'utf8';
+use utf8;
 use strict;
 use warnings;
 
@@ -232,4 +232,3 @@ sub fmt_code {
 sub usage {
     die "Usage: $0 [-o <outfile>] <infile>\n";
 }
-
