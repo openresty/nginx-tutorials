@@ -5,7 +5,7 @@
 === A Detour to Subrequests ===
 
 We have seen earlier that the lifetime of variable containers is bound to the
-request, but I own you a formal definition of "requests" there. You might have
+request, but I owe you a formal definition of "requests" there. You might have
 assumed that the "requests" in that context are just those HTTP requests
 initiated from the client side. In fact, there are two kinds of "requests" in
 the Nginx world. One is called "main requests", and the other is called
