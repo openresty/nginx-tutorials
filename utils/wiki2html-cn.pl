@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use v5.10.1;
 use utf8;
 use strict;
 use warnings;
@@ -44,7 +45,7 @@ if ($infile =~ /\b(\d+)-(\w+?)(?:\d+)?\.wiki$/) {
     die "Bad input file $infile\n";
 }
 
-open my $in, "<:encoding(UTF-8)", $infile
+open my $in, "<:encoding(utf-8)", $infile
     or die "Cannot open $infile for reading: $!\n";
 
 my $ctx = {};
@@ -96,7 +97,7 @@ close $in;
 #$html .= "    </body>\n</html>\n";
 
 if ($outfile) {
-    open my $out, ">:encoding(UTF-8)", $outfile
+    open my $out, ">:encoding(utf-8)", $outfile
         or die "Cannot open $outfile for writing: $!\n";
 
     print $out $html;

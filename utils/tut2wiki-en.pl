@@ -1,8 +1,9 @@
 #!/usr/bin/env perl
 
+use v5.10.1;
+use utf8;
 use strict;
 use warnings;
-use encoding 'utf8';
 
 use Getopt::Std;
 my %opts;

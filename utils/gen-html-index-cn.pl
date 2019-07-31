@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
-use encoding 'utf8';
+use v5.10.1;
+use utf8;
 use strict;
 use warnings;
 
@@ -85,7 +86,7 @@ _EOC_
 $res .= "</ul>\n";
 
 for my $infile (@ARGV) {
-    open my $in, $infile
+    open my $in, "<:encoding(utf-8)", $infile
         or die "Cannot open $infile for reading: $!\n";
     $res .= do { local $/; <$in> };
     close $in;
@@ -94,7 +95,7 @@ for my $infile (@ARGV) {
 $res .= "</body></html>";
 
 if ($outfile) {
-    open my $out, ">:encoding(UTF-8)", $outfile
+    open my $out, ">:encoding(utf-8)", $outfile
         or die "Cannot open $outfile for writing: $!\n";
 
     print $out $res;

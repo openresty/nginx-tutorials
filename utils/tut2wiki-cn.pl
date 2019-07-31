@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+use v5.10.1;
 use utf8;
 use strict;
 use warnings;
@@ -36,7 +37,7 @@ my %links = (
 my $infile = shift or
     usage();
 
-open my $in, "<:encoding(UTF-8)", $infile
+open my $in, "<:encoding(utf-8)", $infile
     or die "cannot open $infile for reading: $!\n";
 
 my $prev;
@@ -76,7 +77,7 @@ close $in;
 
 utf8::encode($src);
 
-open $in, "<:encoding(UTF-8)", \$src or die $!;
+open $in, "<:encoding(utf-8)", \$src or die $!;
 
 my $wiki = '';
 undef $prev;
@@ -211,7 +212,7 @@ if ($wiki =~ /\bL<.*?>/) {
 $wiki =~ s/^\s+|\s+$//sg;
 
 if ($outfile) {
-    open my $out, ">:encoding(UTF-8)", $outfile
+    open my $out, ">:encoding(utf-8)", $outfile
         or die "Cannot open $outfile for writing: $!\n";
 
     print $out $wiki;

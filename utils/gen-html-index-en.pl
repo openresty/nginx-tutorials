@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
-use encoding 'utf8';
+use v5.10.1;
+use utf8;
 use strict;
 use warnings;
 
@@ -91,7 +92,7 @@ $res .= "</section>\n";
 $res .= "<section class=\"content\">\n";
 
 for my $infile (@ARGV) {
-    open my $in, $infile
+    open my $in, "<:encoding(utf-8)", $infile
         or die "Cannot open $infile for reading: $!\n";
     $res .= "<article>\n";
     my $c = do { local $/; <$in> };

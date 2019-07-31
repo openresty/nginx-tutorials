@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
-use encoding 'utf8';
+use v5.10.1;
+use utf8;
 use strict;
 use warnings;
 

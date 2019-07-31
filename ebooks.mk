@@ -25,7 +25,6 @@ html: $(name).html
 %.pdf: $(name).html
 	cp tutorial-simple.css tutorial.css
 	ebook-convert $< $@ \
-	    --override-profile-size \
 	    --margin-bottom 10 \
 	    --margin-top 10 \
 	    --margin-left 10 \
