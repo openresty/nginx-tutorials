@@ -25,7 +25,7 @@
 C<$a>. 然而不幸的是，事实并非如此：
 
     :bash
-    $ curl 'http://localhost:8080/test
+    $ curl 'http://localhost:8080/test'
     56
     56
 

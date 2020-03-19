@@ -183,7 +183,7 @@ around the variable name (excluding the C<$> prefix), as in C<${first}>. Let's
 test this sample:
 
     :bash
-    $ curl 'http://localhost:8080/test
+    $ curl 'http://localhost:8080/test'
     hello world
 
 == Variable Declaration and Creation ==

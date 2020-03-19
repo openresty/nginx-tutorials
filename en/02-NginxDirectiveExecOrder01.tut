@@ -24,7 +24,7 @@ variable C<$a> has been reset after command L<ngx_echo/echo> "is
 executed". Really? the reality is:
 
     :bash
-    $ curl 'http://localhost:8080/test
+    $ curl 'http://localhost:8080/test'
     56
     56
 

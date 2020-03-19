@@ -128,7 +128,7 @@ C<$> 字符给转义
 名围起来，比如这里的 C<${first}>. 上面这个例子的输出是：
 
     :bash
-    $ curl 'http://localhost:8080/test
+    $ curl 'http://localhost:8080/test'
     hello world
 
 L<ngx_rewrite/set> 指令（以及前面提到的 L<ngx_geo/geo>
