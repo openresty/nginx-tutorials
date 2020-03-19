@@ -25,15 +25,15 @@ html: $(name).html
 %.pdf: $(name).html
 	cp tutorial-simple.css tutorial.css
 	ebook-convert $< $@ \
-	    --margin-bottom 10 \
-	    --margin-top 10 \
-	    --margin-left 10 \
-	    --margin-right 10 \
+	    --margin-bottom 5 \
+	    --margin-top 5 \
+	    --margin-left 5 \
+	    --margin-right 5 \
 	    --no-chapters-in-toc \
 	    --book-producer 'agentzh' \
 	    --pdf-default-font-size 12 \
 	    --pdf-mono-font-size 12 \
-	    --paper-size a4 \
+	    --paper-size letter \
 	    --title "$(title)" --publisher 'agentzh' \
 	    --language $(lang2) --authors 'agentzh'
 	git co tutorial.css
