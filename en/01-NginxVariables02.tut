@@ -97,7 +97,7 @@ request being processed, and is irrelevant to C<location>.
 
 The Nginx variables we have seen so far are all (implicitly) created by
 directives like L<ngx_rewite/set>. We usually call such variables "user-defined
-varaibles", or simply "user variables". There is also another kind of Nginx
+variables", or simply "user variables". There is also another kind of Nginx
 variables that are I<pre-defined> by either the Nginx core or Nginx modules.
 Let's call this kind of variables "built-in variables".
 
